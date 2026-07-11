@@ -1,0 +1,3427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ADP Manager Dashboard</title>
+<style>
+  :root{
+    --red:#B91C2C;
+    --red-dark:#8F1522;
+    --ink:#1E2124;
+    --paper:#FAF7F2;
+    --card:#FFFFFF;
+    --line:#E5DFD6;
+    --muted:#7A756C;
+    --green:#2E7D4F;
+    --green-bg:#E7F4EC;
+    --amber:#C0392B;
+    --amber-bg:#FCEBEA;
+    --radius:12px;
+    --tab-h:64px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(var(--tab-h) + 12px);
+    min-height:100vh;
+  }
+  header.app-header{
+    position:sticky; top:0; z-index:20;
+    background:var(--ink);
+    color:#fff;
+    padding:14px 16px 12px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  header.app-header .brand{
+    display:flex; flex-direction:column; line-height:1.15;
+  }
+  header.app-header .brand .eyebrow{
+    font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#C7A98A;
+    font-weight:600;
+  }
+  header.app-header .brand .title{
+    font-size:19px; font-weight:700;
+  }
+  header.app-header .icon-btn{
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.18);
+    color:#fff;
+    border-radius:10px;
+    padding:8px 10px;
+    font-size:12px;
+    font-weight:600;
+    display:flex; gap:6px; align-items:center;
+  }
+  header.app-header .header-right{
+    display:flex; align-items:center; gap:10px;
+  }
+  .sync-badge{
+    font-size:11px; font-weight:600;
+    display:flex; align-items:center; gap:5px;
+    color:#C7A98A;
+    white-space:nowrap;
+  }
+  .sync-badge::before{
+    content:""; width:7px; height:7px; border-radius:50%;
+    background:#8A8578; flex:none;
+  }
+  .sync-badge.ok::before{ background:var(--green); }
+  .sync-badge.warn::before{ background:var(--amber); }
+  .sync-badge.syncing::before{
+    background:#C7A98A;
+    animation:pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  main{ padding:16px; max-width:720px; margin:0 auto; }
+
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; animation:fade .18s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  .section-label{
+    font-size:12px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--muted); font-weight:700; margin:22px 0 10px 0;
+  }
+  .section-label:first-child{ margin-top:4px; }
+
+  .stat-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+  }
+  .stat-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 10px; text-align:center;
+  }
+  .stat-card .val{ font-size:22px; font-weight:800; color:var(--ink); }
+  .stat-card .val.dim{ color:var(--muted); font-size:14px; font-weight:600; }
+  .stat-card .lbl{ font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.04em;}
+  .stat-card.ok .val{ color:var(--green); }
+  .stat-card.warn .val{ color:var(--amber); }
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; margin-bottom:12px;
+  }
+  .empty-state{
+    text-align:center; padding:22px 12px; color:var(--muted);
+  }
+  .empty-state .big{ font-size:28px; margin-bottom:6px; }
+  .empty-state .msg{ font-size:14px; font-weight:600; color:var(--ink); }
+  .empty-state .sub{ font-size:12.5px; margin-top:4px; }
+
+  .todo-row{
+    display:flex; align-items:center; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .todo-row:last-child{ border-bottom:none; }
+  .todo-dot{ width:8px; height:8px; border-radius:50%; background:var(--amber); flex-shrink:0; }
+  .todo-text{ font-size:14px; flex:1; }
+  .todo-due{ font-size:11px; color:var(--muted); white-space:nowrap; }
+
+  .placeholder-wrap{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:60px 20px; text-align:center; color:var(--muted);
+  }
+  .placeholder-wrap .emoji{ font-size:36px; margin-bottom:10px; }
+  .placeholder-wrap h2{ font-size:17px; color:var(--ink); margin:0 0 6px 0; }
+  .placeholder-wrap p{ font-size:13.5px; margin:0; max-width:280px; }
+  .placeholder-badge{
+    margin-top:14px; font-size:11px; font-weight:700; letter-spacing:0.05em;
+    text-transform:uppercase; background:var(--amber-bg); color:var(--amber);
+    padding:5px 10px; border-radius:20px;
+  }
+
+  h1.page-title{ font-size:20px; margin:2px 0 2px 0; }
+  p.page-sub{ font-size:13px; color:var(--muted); margin:0 0 4px 0; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border-radius:10px; border:1px solid var(--line); background:var(--card);
+    padding:11px 14px; font-size:14px; font-weight:600; color:var(--ink);
+    cursor:pointer; width:100%;
+  }
+  .btn.primary{ background:var(--red); color:#fff; border-color:var(--red); }
+  .btn.primary:active{ background:var(--red-dark); }
+  .btn-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px; }
+  input[type=file]{ display:none; }
+
+  .toast{
+    position:fixed; left:50%; bottom:calc(var(--tab-h) + 20px); transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 16px; border-radius:30px;
+    font-size:13px; font-weight:600; z-index:100; opacity:0; pointer-events:none;
+    transition:opacity .25s ease, bottom .25s ease;
+    max-width:85%; text-align:center;
+  }
+  .toast.show{ opacity:1; bottom:calc(var(--tab-h) + 28px); }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(30,33,36,0.55);
+    display:none; align-items:flex-end; justify-content:center;
+    z-index:200; padding:0;
+  }
+  .modal-overlay.show{ display:flex; }
+  @keyframes modalIn{ from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:none;} }
+  .modal-box{
+    background:var(--card); width:100%; max-width:420px;
+    border-radius:16px 16px 0 0; padding:20px 18px calc(18px + env(safe-area-inset-bottom,0px)) 18px;
+    animation:modalIn .18s ease;
+  }
+  @media (min-width:480px){
+    .modal-overlay{ align-items:center; }
+    .modal-box{ border-radius:16px; }
+  }
+  .modal-box h3{ font-size:16px; margin:0 0 4px 0; color:var(--ink); }
+  .modal-box p.modal-msg{ font-size:13.5px; color:var(--muted); margin:0 0 14px 0; line-height:1.4; }
+  .modal-box input[type=text]{
+    width:100%; border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; font-size:15px; color:var(--ink); background:var(--paper);
+    margin-bottom:14px;
+  }
+  .modal-box input[type=text]:focus{ outline:2px solid var(--red); outline-offset:1px; }
+  .modal-btn-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .modal-btn{
+    border-radius:10px; border:1px solid var(--line); background:var(--paper);
+    padding:11px 14px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer;
+  }
+  .modal-btn.primary{ background:var(--red); color:#fff; border-color:var(--red); }
+  .modal-btn.danger{ background:var(--amber); color:#fff; border-color:var(--amber); }
+
+  nav.tab-bar{
+    position:fixed; bottom:0; left:0; right:0; z-index:20;
+    background:#fff; border-top:1px solid var(--line);
+    display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    height:var(--tab-h);
+    scrollbar-width:none;
+  }
+  nav.tab-bar::-webkit-scrollbar{ display:none; }
+  nav.tab-bar button{
+    flex:0 0 auto; min-width:72px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; background:none; border:none; padding:6px 10px;
+    color:var(--muted); font-size:10.5px; font-weight:600;
+  }
+  nav.tab-bar button .ic{ font-size:19px; line-height:1; }
+  nav.tab-bar button.active{ color:var(--red); }
+  nav.tab-bar button.active .ic{ transform:scale(1.05); }
+
+  ::-webkit-scrollbar{ height:0; }
+
+  /* Segmented site toggle */
+  .segmented{
+    display:flex; background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:3px; gap:3px; margin-bottom:16px;
+  }
+  .segmented button{
+    flex:1; border:none; background:none; padding:9px 8px; border-radius:8px;
+    font-size:13.5px; font-weight:700; color:var(--muted);
+  }
+  .segmented button.active{ background:var(--ink); color:#fff; }
+
+  /* Menu item rows */
+  .menu-item-row{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 14px; margin-bottom:10px;
+  }
+  .mi-top{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  }
+  .mi-name{ font-size:14.5px; font-weight:700; }
+  .mi-actions{ display:flex; gap:6px; }
+  .icon-sm{
+    border:1px solid var(--line); background:var(--paper); border-radius:8px;
+    width:30px; height:30px; font-size:13px; color:var(--muted); flex-shrink:0;
+  }
+  .icon-sm.danger{ color:var(--amber); }
+  .mi-fields{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:end;
+  }
+  .mi-field label{
+    display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--muted); font-weight:700; margin-bottom:4px;
+  }
+  .mi-field .input-wrap{
+    display:flex; align-items:center; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper); padding:0 8px;
+  }
+  .mi-field .input-wrap span{ font-size:13px; color:var(--muted); }
+  .mi-field input{
+    border:none; background:none; padding:9px 4px; font-size:14px; width:100%;
+    color:var(--ink); font-weight:600;
+  }
+  .mi-field input:focus{ outline:none; }
+  .mi-margin{
+    grid-column:1 / -1; font-size:12.5px; font-weight:700; color:var(--green);
+    background:var(--green-bg); border-radius:8px; padding:7px 10px; text-align:center;
+  }
+  .mi-margin.negative{ color:var(--amber); background:var(--amber-bg); }
+  .add-item-btn{
+    width:100%; border:2px dashed var(--line); background:none; border-radius:var(--radius);
+    padding:14px; font-size:14px; font-weight:700; color:var(--muted); margin-top:4px;
+  }
+
+  /* Payday tab */
+  .field-label{
+    display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--muted); font-weight:700; margin-bottom:5px;
+  }
+  .field-input{
+    width:100%; border:1px solid var(--line); border-radius:8px; background:var(--paper);
+    padding:10px 10px; font-size:14px; color:var(--ink); font-weight:600;
+  }
+  .field-input:focus{ outline:none; border-color:var(--red); }
+  .field-row{ margin-bottom:14px; }
+  .field-row:last-child{ margin-bottom:0; }
+  .inline-add{ display:flex; gap:8px; align-items:flex-end; }
+  .inline-add .field-row{ flex:1; margin-bottom:0; }
+  .inline-add button{
+    flex-shrink:0; background:var(--red); color:#fff; border:none; border-radius:8px;
+    padding:10px 16px; font-size:14px; font-weight:700; height:41px;
+  }
+  .date-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 4px; border-bottom:1px solid var(--line); font-size:14px;
+  }
+  .date-row:last-child{ border-bottom:none; }
+  .date-row .badge{
+    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em;
+    padding:3px 8px; border-radius:20px; margin-left:8px;
+  }
+  .badge.next{ background:var(--green-bg); color:var(--green); }
+  .badge.past{ background:var(--line); color:var(--muted); }
+  .date-row .del-date{
+    border:none; background:none; color:var(--amber); font-size:15px; padding:4px 6px;
+  }
+  .date-row .date-label{ display:flex; align-items:center; }
+</style>
+
+<style>
+  /* Member List */
+  .member-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    margin-bottom:10px; overflow:hidden;
+  }
+  .member-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px; gap:10px;
+  }
+  .member-header-left{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .member-name-display{ font-weight:700; font-size:15px; }
+  .member-badges{ display:flex; gap:6px; flex-wrap:wrap; }
+  .badge-role{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; text-transform:uppercase;
+  }
+  .badge-role.leader{ background:var(--amber-bg); color:var(--red); }
+  .badge-role.member{ background:var(--line); color:var(--muted); }
+  .badge-site{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:var(--paper); border:1px solid var(--line); color:var(--muted);
+  }
+  .badge-score{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:#FDF3E3; color:#B7791F;
+  }
+  .chevron{ font-size:13px; color:var(--muted); transition:transform .15s ease; flex-shrink:0; }
+  .chevron.open{ transform:rotate(180deg); }
+
+  .member-body{ padding:2px 14px 16px 14px; border-top:1px solid var(--line); }
+  .site-check-row{ display:flex; gap:16px; margin-top:2px; }
+  .site-check-row label{ display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; }
+  .site-check-row input{ width:16px; height:16px; }
+  .role-toggle{ display:flex; gap:8px; margin-top:2px; }
+  .role-toggle button{
+    flex:1; border:1px solid var(--line); background:var(--paper); border-radius:8px;
+    padding:9px; font-size:13px; font-weight:700; color:var(--muted);
+  }
+  .role-toggle button.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .star-row{ display:flex; gap:6px; margin-top:2px; }
+  .star-btn{
+    border:1px solid var(--line); background:var(--paper); border-radius:8px;
+    width:36px; height:36px; font-size:15px; color:var(--line); flex-shrink:0;
+  }
+  .star-btn.filled{ color:#E8A33D; border-color:#E8A33D; background:#FDF3E3; }
+  .notes-header{ display:flex; align-items:center; justify-content:space-between; margin-top:16px; }
+  .notes-header .add-note-btn{
+    border:none; background:var(--ink); color:#fff; border-radius:8px;
+    padding:7px 12px; font-size:12px; font-weight:700;
+  }
+  .notes-list{
+    max-height:180px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;
+    padding:4px 10px; margin-top:8px; background:var(--paper);
+  }
+  .notes-list.empty{ text-align:center; color:var(--muted); font-size:12.5px; padding:14px 4px; }
+  .note-row{ padding:9px 0; border-bottom:1px solid var(--line); }
+  .note-row:last-child{ border-bottom:none; }
+  .note-row-top{ display:flex; align-items:center; justify-content:space-between; }
+  .note-date{ font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.03em; }
+  .note-text{ font-size:13.5px; margin-top:3px; line-height:1.4; }
+  .note-del{ border:none; background:none; color:var(--amber); font-size:12px; padding:2px 4px; flex-shrink:0; }
+  .danger-btn{
+    width:100%; margin-top:16px; border:1px solid var(--amber); background:var(--amber-bg);
+    color:var(--amber); border-radius:10px; padding:10px; font-weight:700; font-size:13.5px;
+  }
+</style>
+
+<style>
+  /* Vendor Info */
+  .field-textarea{
+    width:100%; border:1px solid var(--line); border-radius:8px; background:var(--paper);
+    padding:10px; font-size:14px; color:var(--ink); font-weight:500; resize:vertical;
+    min-height:56px; font-family:inherit; line-height:1.4;
+  }
+  .field-textarea:focus{ outline:none; border-color:var(--red); }
+  .badge-fixed{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:var(--paper); border:1px solid var(--line); color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.03em;
+  }
+</style>
+
+<style>
+  /* Shift Tracker */
+  .item-grid-header{
+    display:grid; grid-template-columns:1fr 58px 58px; gap:8px;
+    font-size:10px; text-transform:uppercase; color:var(--muted); font-weight:700;
+    padding:0 2px; margin-top:4px; letter-spacing:0.03em;
+  }
+  .item-grid-header span:nth-child(2), .item-grid-header span:nth-child(3){ text-align:center; }
+  .item-grid-row{
+    display:grid; grid-template-columns:1fr 58px 58px; gap:8px; align-items:center;
+    padding:7px 2px; border-bottom:1px solid var(--line);
+  }
+  .item-grid-row:last-child{ border-bottom:none; }
+  .item-grid-row .item-name{
+    font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .item-grid-row input{
+    width:100%; border:1px solid var(--line); border-radius:6px; background:var(--paper);
+    padding:7px 4px; font-size:13px; text-align:center; font-weight:700; color:var(--ink);
+  }
+  .item-grid-row input:focus{ outline:none; border-color:var(--red); }
+
+  .form-summary{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0; }
+  .form-summary .stat-card{ padding:10px 6px; }
+  .form-summary .stat-card .val{ font-size:17px; }
+  .form-summary .stat-card .lbl{ font-size:9.5px; }
+
+  .cycle-readout{
+    background:var(--paper); border:1px solid var(--line); border-radius:8px;
+    padding:9px 12px; font-size:13px; font-weight:600; color:var(--ink); margin-top:2px;
+  }
+
+  .badge-metric{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:var(--paper); border:1px solid var(--line); color:var(--muted);
+  }
+  .badge-metric.ok{ background:var(--green-bg); color:var(--green); border-color:transparent; }
+  .badge-metric.warn{ background:var(--amber-bg); color:var(--amber); border-color:transparent; }
+
+  .shift-form-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; margin-bottom:14px;
+  }
+  .shift-form-card h3{ font-size:15px; margin:0 0 4px 0; }
+</style>
+
+<style>
+  /* To-Do List */
+  .todo-row-full{
+    display:flex; align-items:flex-start; gap:10px; padding:12px 4px;
+    border-bottom:1px solid var(--line);
+  }
+  .todo-row-full:last-child{ border-bottom:none; }
+  .todo-row-full.done .todo-text-full{ text-decoration:line-through; color:var(--muted); }
+  .todo-check{ width:20px; height:20px; margin-top:2px; flex-shrink:0; }
+  .todo-main{ flex:1; min-width:0; }
+  .todo-text-full{ font-size:14px; font-weight:600; line-height:1.4; word-break:break-word; }
+  .todo-meta{ display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .todo-actions{ display:flex; gap:6px; flex-shrink:0; }
+
+  .badge-priority-high{ background:var(--amber-bg); color:var(--amber); }
+  .badge-priority-medium{ background:#FDF3E3; color:#B7791F; }
+  .badge-priority-low{ background:var(--line); color:var(--muted); }
+  .badge-due{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:var(--paper); border:1px solid var(--line); color:var(--muted);
+  }
+  .badge-due.overdue{ background:var(--amber-bg); color:var(--amber); border-color:transparent; }
+</style>
+
+<style>
+  /* Site Comparison */
+  .compare-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:4px; }
+  .compare-col{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px;
+  }
+  .compare-col h4{
+    margin:0 0 10px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .compare-metric-row{
+    display:flex; justify-content:space-between; align-items:baseline; padding:7px 0;
+    border-bottom:1px solid var(--line); font-size:12.5px; color:var(--muted);
+  }
+  .compare-metric-row:last-child{ border-bottom:none; }
+  .compare-metric-row .val{ font-weight:800; font-size:15px; color:var(--ink); }
+  .compare-metric-row .val.ok{ color:var(--green); }
+  .compare-metric-row .val.warn{ color:var(--amber); }
+  .compare-count{ font-size:10.5px; color:var(--muted); margin-top:8px; text-align:right; }
+
+  .chart-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-bottom:12px;
+  }
+  .chart-card h4{ margin:0 0 8px 0; font-size:13px; }
+  .trend-svg{ width:100%; height:auto; display:block; }
+  .trend-legend{
+    display:flex; align-items:center; flex-wrap:wrap; gap:5px 10px; font-size:11px; color:var(--muted); margin-top:8px;
+  }
+  .trend-legend .legend-item{ display:inline-flex; align-items:center; gap:5px; }
+  .legend-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
+</style>
+
+<style>
+  /* Vendor toggle overflow (menu / paydays / shift form site toggles) */
+  .segmented{ overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .segmented::-webkit-scrollbar{ display:none; }
+  .segmented button{ flex-shrink:0; white-space:nowrap; }
+
+
+<style>
+  /* Export / Summary */
+  .preset-row{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
+  }
+  .preset-row button{ font-size:12.5px; padding:9px 4px; }
+  .summary-output{
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size:12.5px; line-height:1.5; min-height:220px; white-space:pre-wrap;
+    background:var(--paper);
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="eyebrow">ADP</span>
+    <span class="title">Manager Dashboard</span>
+  </div>
+  <div class="header-right">
+    <span class="sync-badge" id="syncStatus">Connecting…</span>
+    <button class="icon-btn" id="headerBackupBtn">⇅ Backup</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- HOME TAB -->
+  <section class="tab-panel active" id="tab-home">
+    <h1 class="page-title">Home</h1>
+    <p class="page-sub" id="homeDateLine"></p>
+
+    <div class="section-label">This Week</div>
+    <div class="stat-grid" id="statGrid"></div>
+    <div id="homeWeekNote"></div>
+
+    <div class="section-label">Trailing Averages <span id="homeTrailingSub" style="text-transform:none; font-weight:600; letter-spacing:0;"></span></div>
+    <div class="card">
+      <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:6px;">Last 4 Shifts</div>
+      <div class="stat-grid" id="homeL4Grid" style="margin-bottom:18px;"></div>
+      <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:6px;">Last 30 Days</div>
+      <div class="stat-grid" id="homeL30Grid"></div>
+    </div>
+
+    <div class="section-label">Open To-Dos</div>
+    <div class="card" id="todoPreviewCard"></div>
+
+    <div class="section-label">Backup &amp; Restore</div>
+    <div class="card">
+      <p style="margin:0 0 10px 0; font-size:13px; color:var(--muted);">
+        Export your full dashboard to a JSON file, or import a backup to restore/migrate data.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" id="exportBtn">⬇ Export JSON</button>
+        <button class="btn" id="importBtn">⬆ Import JSON</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json">
+    </div>
+  </section>
+
+  <!-- SHIFT TRACKER -->
+  <section class="tab-panel" id="tab-shifts">
+    <h1 class="page-title">Shift Tracker</h1>
+    <p class="page-sub">Log headcount, waste, and margin per shift.</p>
+
+    <div id="shiftFormArea"></div>
+
+    <div class="section-label">Shift History</div>
+    <div id="shiftHistoryList"></div>
+
+    <div class="section-label">Backup This Module</div>
+    <div class="card">
+      <p style="margin:0 0 10px 0; font-size:13px; color:var(--muted);">
+        Export just the Shift Tracker data, or import it separately from a full backup.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" id="exportShiftsBtn">⬇ Export Shifts</button>
+        <button class="btn" id="importShiftsBtn">⬆ Import Shifts</button>
+      </div>
+      <input type="file" id="importShiftsFile" accept="application/json">
+    </div>
+  </section>
+
+  <!-- MENU & PRICING -->
+  <section class="tab-panel" id="tab-menu">
+    <h1 class="page-title">Menu &amp; Pricing</h1>
+    <p class="page-sub">Cost &amp; price per item, per site. Feeds margin calcs in Shift Tracker.</p>
+
+    <div class="segmented" id="menuSiteToggle"></div>
+
+    <div id="menuItemList"></div>
+
+    <button class="add-item-btn" id="addMenuItemBtn">+ Add Menu Item</button>
+
+    <div class="section-label">Backup This Module</div>
+    <div class="card">
+      <p style="margin:0 0 10px 0; font-size:13px; color:var(--muted);">
+        Export just the Menu &amp; Pricing data, or import it separately from a full backup.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" id="exportMenuBtn">⬇ Export Menu</button>
+        <button class="btn" id="importMenuBtn">⬆ Import Menu</button>
+      </div>
+      <input type="file" id="importMenuFile" accept="application/json">
+    </div>
+  </section>
+
+  <!-- PAYDAY DATES -->
+  <section class="tab-panel" id="tab-paydays">
+    <h1 class="page-title">Payday Dates</h1>
+    <p class="page-sub">Used to auto-tag shifts with cycle position.</p>
+
+    <div class="segmented" id="paydaySiteToggle"></div>
+
+    <div class="segmented" id="paydayModeToggle">
+      <button data-mode="recurring" class="active">Recurring</button>
+      <button data-mode="manual">Manual</button>
+    </div>
+
+    <div class="card" id="paydayConfigCard"></div>
+
+    <div class="section-label">Payday Preview</div>
+    <div class="card">
+      <div id="paydayPreviewList"></div>
+    </div>
+
+    <div class="section-label">Backup This Module</div>
+    <div class="card">
+      <p style="margin:0 0 10px 0; font-size:13px; color:var(--muted);">
+        Export just the Payday Dates data, or import it separately from a full backup.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" id="exportPaydaysBtn">⬇ Export Paydays</button>
+        <button class="btn" id="importPaydaysBtn">⬆ Import Paydays</button>
+      </div>
+      <input type="file" id="importPaydaysFile" accept="application/json">
+    </div>
+  </section>
+
+  <!-- VENDOR INFO -->
+  <section class="tab-panel" id="tab-vendors">
+    <h1 class="page-title">Vendor Info</h1>
+    <p class="page-sub">Amazon &amp; Walmart are fixed. Any vendor you add here automatically becomes a toggle option in Menu, Paydays, Shift Tracker, and Members.</p>
+
+    <div id="vendorList"></div>
+
+    <button class="add-item-btn" id="addVendorBtn">+ Add Vendor</button>
+
+    <div class="section-label">Backup This Module</div>
+    <div class="card">
+      <p style="margin:0 0 10px 0; font-size:13px; color:var(--muted);">
+        Export just the Vendor Info data, or import it separately from a full backup.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" id="exportVendorsBtn">⬇ Export Vendors</button>
+        <button class="btn" id="importVendorsBtn">⬆ Import Vendors</button>
+      </div>
+      <input type="file" id="importVendorsFile" accept="application/json">
+    </div>
+  </section>
+
+  <!-- MEMBER LIST -->
+  <section class="tab-panel" id="tab-members">
+    <h1 class="page-title">ADP Member List</h1>
+    <p class="page-sub">Leaders &amp; members, referenced by ID everywhere else.</p>
+
+    <button class="add-item-btn" id="addMemberBtn">+ Add Member</button>
+
+    <div style="margin-top:14px;" id="memberList"></div>
+
+    <div class="section-label">Backup This Module</div>
+    <div class="card">
+      <p style="margin:0 0 10px 0; font-size:13px; color:var(--muted);">
+        Export just the Member List data, or import it separately from a full backup.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" id="exportMembersBtn">⬇ Export Members</button>
+        <button class="btn" id="importMembersBtn">⬆ Import Members</button>
+      </div>
+      <input type="file" id="importMembersFile" accept="application/json">
+    </div>
+  </section>
+
+  <!-- TO-DO LIST -->
+  <section class="tab-panel" id="tab-todos">
+    <h1 class="page-title">To-Do List</h1>
+    <p class="page-sub">Categories, due dates, and priority — feeds the Home preview.</p>
+
+    <div id="todoFormArea"></div>
+
+    <div class="section-label">Open</div>
+    <div class="card" id="todoOpenList"></div>
+
+    <button class="btn" id="toggleCompletedBtn" style="margin-top:10px;"></button>
+    <div class="card" id="todoCompletedList" style="display:none; margin-top:10px;"></div>
+
+    <div class="section-label">Backup This Module</div>
+    <div class="card">
+      <p style="margin:0 0 10px 0; font-size:13px; color:var(--muted);">
+        Export just the To-Do List data, or import it separately from a full backup.
+      </p>
+      <div class="btn-row">
+        <button class="btn primary" id="exportTodosBtn">⬇ Export To-Dos</button>
+        <button class="btn" id="importTodosBtn">⬆ Import To-Dos</button>
+      </div>
+      <input type="file" id="importTodosFile" accept="application/json">
+    </div>
+  </section>
+
+  <!-- SITE COMPARISON -->
+  <section class="tab-panel" id="tab-comparison">
+    <h1 class="page-title">Site Comparison</h1>
+    <p class="page-sub">All vendor sites, side by side.</p>
+
+    <div class="section-label">Last 4 Shifts</div>
+    <div class="compare-grid" id="compareL4Grid"></div>
+
+    <div class="section-label">Last 30 Days</div>
+    <div class="compare-grid" id="compareL30Grid"></div>
+
+    <div class="section-label">Trends Over Time</div>
+    <div id="compareTrendCharts"></div>
+  </section>
+
+  <!-- SUMMARY GENERATOR -->
+  <section class="tab-panel" id="tab-summary">
+    <h1 class="page-title">Export / Summary</h1>
+    <p class="page-sub">Formatted text summary for any date range — ready to paste.</p>
+
+    <div class="card">
+      <div class="field-row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+          <label class="field-label">Start Date</label>
+          <input type="date" class="field-input" id="summaryStartDate">
+        </div>
+        <div>
+          <label class="field-label">End Date</label>
+          <input type="date" class="field-input" id="summaryEndDate">
+        </div>
+      </div>
+      <div class="preset-row" id="summaryPresetRow">
+        <button class="btn" data-preset="thisWeek">This Week</button>
+        <button class="btn" data-preset="lastWeek">Last Week</button>
+        <button class="btn" data-preset="thisMonth">This Month</button>
+        <button class="btn" data-preset="last30">Last 30 Days</button>
+      </div>
+    </div>
+
+    <div class="section-label">Summary Preview</div>
+    <div class="card">
+      <textarea class="field-textarea summary-output" id="summaryOutput" readonly rows="14"></textarea>
+      <div class="btn-row">
+        <button class="btn primary" id="copySummaryBtn">📋 Copy to Clipboard</button>
+        <button class="btn" id="downloadSummaryBtn">⬇ Download .txt</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tab-bar" id="tabBar">
+  <button data-tab="home" class="active"><span class="ic">🏠</span>Home</button>
+  <button data-tab="shifts"><span class="ic">📋</span>Shifts</button>
+  <button data-tab="menu"><span class="ic">🧾</span>Menu</button>
+  <button data-tab="paydays"><span class="ic">📅</span>Paydays</button>
+  <button data-tab="vendors"><span class="ic">🏭</span>Vendors</button>
+  <button data-tab="members"><span class="ic">👥</span>Members</button>
+  <button data-tab="todos"><span class="ic">✅</span>To-Dos</button>
+  <button data-tab="comparison"><span class="ic">⚖️</span>Compare</button>
+  <button data-tab="summary"><span class="ic">📝</span>Summary</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box" id="modalBox">
+    <h3 id="modalTitle"></h3>
+    <p class="modal-msg" id="modalMsg" style="display:none;"></p>
+    <input type="text" id="modalInput" style="display:none;">
+    <div class="modal-btn-row">
+      <button class="modal-btn" id="modalCancelBtn">Cancel</button>
+      <button class="modal-btn primary" id="modalConfirmBtn">OK</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+/* ============================================================
+   FIREBASE CLOUD SYNC BRIDGE
+   Keeps the ADP Dashboard's data in a single Firestore document
+   so every device stays in sync. This module runs independently
+   from the main app script below and exposes a small bridge on
+   window.__adpCloud so the main script doesn't need to know
+   anything about Firebase directly.
+   ============================================================ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBsPOrbQDwDZIn8ddXgtyAfWhVLf7-yxa0",
+  authDomain: "adp-dashboard-82ab4.firebaseapp.com",
+  projectId: "adp-dashboard-82ab4",
+  storageBucket: "adp-dashboard-82ab4.firebasestorage.app",
+  messagingSenderId: "268696028651",
+  appId: "1:268696028651:web:020ed9edb4b88a67cc45ae"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+// Everything lives in one document — simplest possible shape for a
+// single shared dataset synced across devices.
+const dashboardDocRef = doc(db, "adpDashboard", "main");
+
+let pendingSaveTimer = null;
+let lastKnownWriteStamp = null;
+
+function setSyncStatus(text, cls){
+  const el = document.getElementById("syncStatus");
+  if(!el) return;
+  el.textContent = text;
+  el.className = "sync-badge" + (cls ? " " + cls : "");
+}
+
+window.__adpCloud = {
+  async load(){
+    try{
+      const snap = await getDoc(dashboardDocRef);
+      return snap.exists() ? snap.data() : null;
+    }catch(e){
+      console.error("ADP cloud load failed:", e);
+      setSyncStatus("Offline — using local copy", "warn");
+      return null;
+    }
+  },
+  save(data){
+    lastKnownWriteStamp = data && data.meta ? data.meta.lastUpdated : null;
+    clearTimeout(pendingSaveTimer);
+    setSyncStatus("Saving…", "syncing");
+    pendingSaveTimer = setTimeout(async ()=>{
+      try{
+        await setDoc(dashboardDocRef, data);
+        setSyncStatus("Synced", "ok");
+      }catch(e){
+        console.error("ADP cloud save failed:", e);
+        setSyncStatus("Offline — saved on this device only", "warn");
+      }
+    }, 600);
+  },
+  subscribe(onRemoteChange){
+    onSnapshot(dashboardDocRef, (snap)=>{
+      if(!snap.exists()) return;
+      const data = snap.data();
+      const stamp = data && data.meta ? data.meta.lastUpdated : null;
+      // Skip the echo of a write this device just made.
+      if(stamp && stamp === lastKnownWriteStamp){
+        setSyncStatus("Synced", "ok");
+        return;
+      }
+      onRemoteChange(data);
+      setSyncStatus("Synced", "ok");
+    }, (err)=>{
+      console.error("ADP cloud subscribe error:", err);
+      setSyncStatus("Offline — using local copy", "warn");
+    });
+  }
+};
+
+// Let the main script know the cloud bridge is ready to use.
+window.dispatchEvent(new Event("adp-cloud-ready"));
+</script>
+
+<script>
+/* ============================================================
+   ADP MANAGER DASHBOARD — shared data layer
+   Single localStorage key: "adpDashboardData" (instant local cache)
+   Firestore document "adpDashboard/main" (cross-device sync source of truth)
+   ============================================================ */
+const STORAGE_KEY = "adpDashboardData";
+
+function defaultData(){
+  return {
+    version: 1,
+    meta: { lastUpdated: new Date().toISOString() },
+    members: {},     // id -> {id,name,phone,sites:[],role,score,notes:[{date,text}]}
+    vendors: {
+      amazon: {
+        contactName:"", contactPhone:"", contactEmail:"",
+        breakSchedule:"11:00 AM, 1:30 PM, 2:30 PM, 9:00 PM, 10:00 PM (Mon/Fri)",
+        equipment:"Fridge",
+        accessNotes:"~20 min drive from prep location",
+        notes:""
+      },
+      walmart: {
+        contactName:"", contactPhone:"", contactEmail:"",
+        breakSchedule:"12:00 PM, 12:30 PM, 1:00 PM, 1:30 PM, 2:00 PM, 2:30 PM, 9:30 PM (Tue/Sat)",
+        equipment:"Coolers",
+        accessNotes:"~15 min drive from prep location; cooler-dependent logistics",
+        notes:""
+      },
+      extra: []  // additional vendor sites you add later: {id,name,contactName,contactPhone,contactEmail,breakSchedule,equipment,accessNotes,notes}
+    },
+    // Master item list — names stored once, referenced by id per site below.
+    menuItems: [
+      {id:"cfa_sandwich",    name:"CFA Sandwich"},
+      {id:"spicy_sandwich",  name:"Spicy Sandwich"},
+      {id:"grilled_wrap",    name:"Grilled Wrap"},
+      {id:"spicy_wrap",      name:"Spicy Wrap"},
+      {id:"salad_1",         name:"Salad Option 1"},
+      {id:"salad_2",         name:"Salad Option 2"},
+      {id:"salad_3",         name:"Salad Option 3"},
+      {id:"parfait",         name:"Berry Parfait"},
+      {id:"soda",            name:"Canned Soda"},
+      {id:"lemonade",        name:"Bottled Lemonade"},
+      {id:"sweet_tea",       name:"Sweet Tea"},
+      {id:"cookie",          name:"Cookie"},
+      {id:"brownie",         name:"Brownie"},
+      {id:"chips",           name:"Chips"}
+    ],
+    menu: {
+      // itemKey -> {cost, price}, one entry per item above, per site
+      amazon: {
+        cfa_sandwich:{cost:0,price:0}, spicy_sandwich:{cost:0,price:0},
+        grilled_wrap:{cost:0,price:0}, spicy_wrap:{cost:0,price:0},
+        salad_1:{cost:0,price:0}, salad_2:{cost:0,price:0}, salad_3:{cost:0,price:0},
+        parfait:{cost:0,price:0}, soda:{cost:0,price:0}, lemonade:{cost:0,price:0},
+        sweet_tea:{cost:0,price:0}, cookie:{cost:0,price:0}, brownie:{cost:0,price:0}, chips:{cost:0,price:0}
+      },
+      walmart: {
+        cfa_sandwich:{cost:0,price:0}, spicy_sandwich:{cost:0,price:0},
+        grilled_wrap:{cost:0,price:0}, spicy_wrap:{cost:0,price:0},
+        salad_1:{cost:0,price:0}, salad_2:{cost:0,price:0}, salad_3:{cost:0,price:0},
+        parfait:{cost:0,price:0}, soda:{cost:0,price:0}, lemonade:{cost:0,price:0},
+        sweet_tea:{cost:0,price:0}, cookie:{cost:0,price:0}, brownie:{cost:0,price:0}, chips:{cost:0,price:0}
+      }
+    },
+    paydays: {
+      amazon:  { mode:"recurring", anchorDate:"", intervalDays:14, manualDates:[] },
+      walmart: { mode:"recurring", anchorDate:"", intervalDays:14, manualDates:[] }
+    },
+    shifts: [],      // shift log entries
+    todos: [],       // {id,text,category,dueDate,priority,done}
+    todoCategories: ["Vendor", "Equipment", "Roadmap", "Training"]  // seed list; grows as custom categories are used
+  };
+}
+
+// Shallow-merges a parsed data object with defaultData() so older
+// backups / cloud documents gain any new fields safely. Shared by
+// localStorage loading, cloud loading, and manual backup import.
+function mergeWithDefaults(parsed){
+  const base = defaultData();
+  return Object.assign(base, parsed, {
+    meta: Object.assign(base.meta, parsed.meta || {}),
+    vendors: Object.assign(base.vendors, parsed.vendors || {}),
+    menu: Object.assign(base.menu, parsed.menu || {}),
+    paydays: Object.assign(base.paydays, parsed.paydays || {})
+  });
+}
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultData();
+    return mergeWithDefaults(JSON.parse(raw));
+  }catch(e){
+    console.error("Failed to load ADP data, starting fresh.", e);
+    return defaultData();
+  }
+}
+
+function saveData(){
+  DATA.meta.lastUpdated = new Date().toISOString();
+  // Instant local cache — dashboard still works offline / mid-sync.
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+  // Cloud sync — keeps every device in sync. Bridge may not be ready
+  // yet on the very first tick of the page; it always catches up.
+  if(window.__adpCloud) window.__adpCloud.save(DATA);
+}
+
+let DATA = loadData();
+
+/* ============================================================
+   Vendor sync layer
+   Every "site" (Amazon, Walmart, or any custom vendor added in
+   the Vendors tab) is treated uniformly from here on. Any page
+   with a site toggle pulls its list from getVendorEntries(), so
+   a newly added vendor automatically shows up everywhere.
+   ============================================================ */
+const SITE_COLOR_PALETTE = ["#B91C2C","#1E2124","#2E7D4F","#C08A2B","#5B4B8A","#1F7A8C","#A8443E","#3C6E47"];
+function getSiteColor(index){
+  return SITE_COLOR_PALETTE[index % SITE_COLOR_PALETTE.length];
+}
+
+// Ensures a site has a menu-pricing entry for every existing menu item,
+// and a paydays config, so nothing silently fails to save for new vendors.
+function ensureSiteDataScaffold(siteId){
+  if(!DATA.menu[siteId]) DATA.menu[siteId] = {};
+  (DATA.menuItems || []).forEach(item=>{
+    if(!DATA.menu[siteId][item.id]) DATA.menu[siteId][item.id] = {cost:0, price:0};
+  });
+  if(!DATA.paydays[siteId]){
+    DATA.paydays[siteId] = {mode:"recurring", anchorDate:"", intervalDays:14, manualDates:[]};
+  }
+}
+
+// Called on load (and can be re-called any time) to guarantee every
+// vendor — fixed or custom — has scaffolded menu/payday data.
+function scaffoldAllVendorSites(){
+  getVendorEntries().forEach(entry => ensureSiteDataScaffold(entry.key));
+}
+
+// Human-readable name for a site id, used anywhere a label is shown.
+function getVendorName(id){
+  const found = getVendorEntries().find(v=>v.key===id);
+  return found ? found.name : id;
+}
+
+// Falls back to "amazon" if the given site id no longer exists
+// (e.g. a custom vendor was deleted while it was the active selection).
+function resolveActiveSite(siteId){
+  return getVendorEntries().some(v=>v.key===siteId) ? siteId : "amazon";
+}
+
+// Shared renderer for the segmented site-toggle buttons used on the
+// Menu, Paydays, and Shift Tracker pages. Regenerating the buttons is
+// safe because the click listeners are delegated to the container.
+function renderSiteToggle(containerId, activeSiteId){
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML = getVendorEntries().map(v=>
+    `<button data-site="${v.key}" class="${v.key===activeSiteId?"active":""}">${escapeHtml(v.name)}</button>`
+  ).join("");
+}
+
+// Same as above but returns an HTML string, for spots where the whole
+// card is rebuilt from a template string (Shift Tracker's form).
+function buildSiteToggleButtonsHtml(activeSiteId){
+  return getVendorEntries().map(v=>
+    `<button data-site="${v.key}" class="${v.key===activeSiteId?"active":""}">${escapeHtml(v.name)}</button>`
+  ).join("");
+}
+
+scaffoldAllVendorSites();
+
+/* ============================================================
+   Toast helper
+   ============================================================ */
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove("show"), 2200);
+}
+
+/* ============================================================
+   Modal dialogs (replaces native prompt()/confirm(), which are
+   blocked/no-op in sandboxed preview environments)
+   ============================================================ */
+const modalOverlay = document.getElementById("modalOverlay");
+const modalBox = document.getElementById("modalBox");
+const modalTitle = document.getElementById("modalTitle");
+const modalMsg = document.getElementById("modalMsg");
+const modalInput = document.getElementById("modalInput");
+const modalCancelBtn = document.getElementById("modalCancelBtn");
+const modalConfirmBtn = document.getElementById("modalConfirmBtn");
+
+let modalResolver = null;
+
+function closeModal(result){
+  modalOverlay.classList.remove("show");
+  if(modalResolver){
+    const resolve = modalResolver;
+    modalResolver = null;
+    resolve(result);
+  }
+}
+
+modalOverlay.addEventListener("click",(e)=>{
+  if(e.target === modalOverlay) closeModal(null);
+});
+modalCancelBtn.addEventListener("click", ()=> closeModal(null));
+modalConfirmBtn.addEventListener("click", ()=>{
+  if(modalInput.style.display !== "none"){
+    closeModal(modalInput.value);
+  } else {
+    closeModal(true);
+  }
+});
+modalInput.addEventListener("keydown",(e)=>{
+  if(e.key === "Enter"){ e.preventDefault(); closeModal(modalInput.value); }
+  if(e.key === "Escape"){ e.preventDefault(); closeModal(null); }
+});
+
+/**
+ * Shows a text-input modal. Resolves with the trimmed string the user
+ * entered, or null if cancelled / left blank.
+ */
+function showPromptModal({title, defaultValue = "", placeholder = "", confirmText = "Add"}){
+  return new Promise((resolve)=>{
+    modalResolver = (val)=>{
+      if(val === null || val === undefined) return resolve(null);
+      const trimmed = String(val).trim();
+      resolve(trimmed ? trimmed : null);
+    };
+    modalTitle.textContent = title;
+    modalMsg.style.display = "none";
+    modalInput.style.display = "block";
+    modalInput.value = defaultValue;
+    modalInput.placeholder = placeholder;
+    modalConfirmBtn.textContent = confirmText;
+    modalConfirmBtn.classList.remove("danger");
+    modalConfirmBtn.classList.add("primary");
+    modalOverlay.classList.add("show");
+    setTimeout(()=>{ modalInput.focus(); modalInput.select(); }, 50);
+  });
+}
+
+/**
+ * Shows a yes/no confirmation modal. Resolves with true/false.
+ */
+function showConfirmModal({title = "Are you sure?", message = "", confirmText = "Delete", danger = true}){
+  return new Promise((resolve)=>{
+    modalResolver = (val)=> resolve(!!val);
+    modalTitle.textContent = title;
+    modalMsg.textContent = message;
+    modalMsg.style.display = message ? "block" : "none";
+    modalInput.style.display = "none";
+    modalConfirmBtn.textContent = confirmText;
+    modalConfirmBtn.classList.remove("primary");
+    if(danger) modalConfirmBtn.classList.add("danger");
+    else modalConfirmBtn.classList.add("primary");
+    modalOverlay.classList.add("show");
+  });
+}
+
+/* ============================================================
+   Tab navigation
+   ============================================================ */
+document.getElementById("tabBar").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button[data-tab]");
+  if(!btn) return;
+  const tab = btn.dataset.tab;
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll("nav.tab-bar button").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+tab).classList.add("active");
+  btn.classList.add("active");
+  if(tab === "home") renderHome();
+  if(tab === "menu") renderMenuTab();
+  if(tab === "paydays") renderPaydaysTab();
+  if(tab === "members") renderMembersTab();
+  if(tab === "vendors") renderVendorsTab();
+  if(tab === "shifts") renderShiftTracker();
+  if(tab === "todos") renderTodosTab();
+  if(tab === "comparison") renderSiteComparisonTab();
+  if(tab === "summary") renderSummaryTab();
+  window.scrollTo({top:0, behavior:"instant"});
+});
+
+/* ============================================================
+   Home tab rendering
+   ============================================================ */
+function getWeekRange(){
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const diffToMonday = (day === 0) ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setHours(0,0,0,0);
+  monday.setDate(now.getDate() + diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23,59,59,999);
+  return {start: monday, end: sunday};
+}
+
+function shiftsThisWeek(){
+  if(!Array.isArray(DATA.shifts) || DATA.shifts.length === 0) return [];
+  const {start, end} = getWeekRange();
+  return DATA.shifts.filter(s=>{
+    if(!s.date) return false;
+    const d = new Date(s.date);
+    return d >= start && d <= end;
+  });
+}
+
+function renderHome(){
+  const {start, end} = getWeekRange();
+  const fmt = (d)=> d.toLocaleDateString(undefined,{month:"short", day:"numeric"});
+  document.getElementById("homeDateLine").textContent = `Week of ${fmt(start)} – ${fmt(end)}`;
+
+  const weekShifts = shiftsThisWeek();
+  const grid = document.getElementById("statGrid");
+  const note = document.getElementById("homeWeekNote");
+
+  if(weekShifts.length === 0){
+    grid.innerHTML = `
+      <div class="stat-card"><div class="val dim">—</div><div class="lbl">Capture Rate</div></div>
+      <div class="stat-card"><div class="val dim">—</div><div class="lbl">Waste %</div></div>
+      <div class="stat-card"><div class="val dim">—</div><div class="lbl">Margin</div></div>
+    `;
+    note.innerHTML = `
+      <div class="card" style="margin-top:10px;">
+        <div class="empty-state" style="padding:14px 4px;">
+          <div class="sub">No shifts logged this week yet. Log one in <strong>Shift Tracker</strong> and your capture rate, waste %, and margin will show here automatically.</div>
+        </div>
+      </div>
+    `;
+  } else {
+    const m = aggregateShiftMetrics(weekShifts);
+    const wasteClass = m.wastePct === null ? "" : (m.wastePct <= 27 ? "ok" : "warn");
+    const marginClass = m.marginPct === null ? "" : (m.marginPct >= 0 ? "ok" : "warn");
+    grid.innerHTML = `
+      <div class="stat-card">
+        <div class="val">${m.captureRatePct === null ? "—" : m.captureRatePct.toFixed(0)+"%"}</div>
+        <div class="lbl">Capture Rate</div>
+      </div>
+      <div class="stat-card ${wasteClass}">
+        <div class="val">${m.wastePct === null ? "—" : m.wastePct.toFixed(0)+"%"}</div>
+        <div class="lbl">Waste %</div>
+      </div>
+      <div class="stat-card ${marginClass}">
+        <div class="val">${m.marginPct === null ? "—" : m.marginPct.toFixed(0)+"%"}</div>
+        <div class="lbl">Margin</div>
+      </div>
+    `;
+    note.innerHTML = `
+      <div class="card" style="margin-top:10px;">
+        <p style="margin:0; font-size:12.5px; color:var(--muted);">
+          Based on ${weekShifts.length} shift${weekShifts.length===1?"":"s"} this week &middot;
+          Profit so far: <strong style="color:var(--ink);">$${m.profit.toFixed(2)}</strong>
+        </p>
+      </div>
+    `;
+  }
+
+  renderHomeTrailingAverages();
+  renderTodoPreview();
+}
+
+function statCardHtml(label, valuePct, colorMode){
+  // colorMode: "waste" (green<=27/red>27), "margin" (green>=0/red<0), or null (no color)
+  let cls = "";
+  if(valuePct !== null){
+    if(colorMode === "waste") cls = valuePct <= 27 ? "ok" : "warn";
+    if(colorMode === "margin") cls = valuePct >= 0 ? "ok" : "warn";
+  }
+  const dimCls = valuePct === null ? "dim" : "";
+  return `
+    <div class="stat-card ${cls}">
+      <div class="val ${dimCls}">${valuePct === null ? "—" : valuePct.toFixed(0)+"%"}</div>
+      <div class="lbl">${label}</div>
+    </div>
+  `;
+}
+
+function renderHomeTrailingAverages(){
+  const allSorted = DATA.shifts.slice().sort((a,b)=> b.date.localeCompare(a.date));
+  const last4 = allSorted.slice(0,4);
+  const cutoff30 = (()=>{ const d = new Date(); d.setDate(d.getDate()-30); return formatISO(d); })();
+  const last30 = allSorted.filter(s=> s.date >= cutoff30);
+
+  const m4 = aggregateShiftMetrics(last4);
+  const m30 = aggregateShiftMetrics(last30);
+
+  document.getElementById("homeTrailingSub").textContent =
+    (last4.length === 0 && last30.length === 0) ? "· no shifts yet" : "";
+
+  document.getElementById("homeL4Grid").innerHTML =
+    statCardHtml("Capture Rate", m4.captureRatePct, null) +
+    statCardHtml("Waste %", m4.wastePct, "waste") +
+    statCardHtml("Margin", m4.marginPct, "margin");
+
+  document.getElementById("homeL30Grid").innerHTML =
+    statCardHtml("Capture Rate", m30.captureRatePct, null) +
+    statCardHtml("Waste %", m30.wastePct, "waste") +
+    statCardHtml("Margin", m30.marginPct, "margin");
+}
+
+function renderTodoPreview(){
+  const card = document.getElementById("todoPreviewCard");
+  const open = (DATA.todos || []).filter(t=>!t.done);
+
+  if(open.length === 0){
+    card.innerHTML = `
+      <div class="empty-state">
+        <div class="big">🗒️</div>
+        <div class="msg">No data yet</div>
+        <div class="sub">Open to-dos will preview here once the <strong>To-Do List</strong> module is built.</div>
+      </div>
+    `;
+    return;
+  }
+
+  const sorted = open.slice().sort((a,b)=>{
+    if(!a.dueDate) return 1;
+    if(!b.dueDate) return -1;
+    return new Date(a.dueDate) - new Date(b.dueDate);
+  }).slice(0,5);
+
+  card.innerHTML = sorted.map(t=>`
+    <div class="todo-row">
+      <span class="todo-dot"></span>
+      <span class="todo-text">${escapeHtml(t.text || "")}</span>
+      <span class="todo-due">${t.dueDate ? formatShortDate(t.dueDate) : ""}</span>
+    </div>
+  `).join("");
+}
+
+function formatShortDate(dstr){
+  const d = new Date(dstr);
+  if(isNaN(d)) return "";
+  return d.toLocaleDateString(undefined,{month:"short", day:"numeric"});
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ============================================================
+   Export / Import (global backup)
+   ============================================================ */
+function exportData(){
+  const blob = new Blob([JSON.stringify(DATA, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `adp-dashboard-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Backup exported");
+}
+
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(typeof parsed !== "object" || parsed === null){
+        throw new Error("Invalid file format");
+      }
+      DATA = mergeWithDefaults(parsed);
+      scaffoldAllVendorSites();
+      saveData();
+      renderAllTabs();
+      showToast("Backup imported successfully");
+    }catch(err){
+      console.error(err);
+      showToast("Import failed — not a valid backup file");
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportBtn").addEventListener("click", exportData);
+document.getElementById("headerBackupBtn").addEventListener("click", exportData);
+document.getElementById("importBtn").addEventListener("click", ()=>{
+  document.getElementById("importFile").click();
+});
+document.getElementById("importFile").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(file) importData(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   Menu & Pricing tab
+   ============================================================ */
+let currentMenuSite = "amazon";
+
+function slugify(name){
+  let base = name.toLowerCase().trim().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+  if(!base) base = "item";
+  let id = base, n = 1;
+  const existing = new Set(DATA.menuItems.map(i=>i.id));
+  while(existing.has(id)){
+    id = `${base}_${++n}`;
+  }
+  return id;
+}
+
+function computeMargin(cost, price){
+  const c = Number(cost) || 0;
+  const p = Number(price) || 0;
+  const dollar = p - c;
+  const pct = p > 0 ? (dollar / p) * 100 : 0;
+  return {dollar, pct};
+}
+
+function renderMenuTab(){
+  currentMenuSite = resolveActiveSite(currentMenuSite);
+  renderSiteToggle("menuSiteToggle", currentMenuSite);
+
+  const list = document.getElementById("menuItemList");
+
+  if(!DATA.menuItems || DATA.menuItems.length === 0){
+    list.innerHTML = `
+      <div class="card">
+        <div class="empty-state">
+          <div class="big">🧾</div>
+          <div class="msg">No menu items yet</div>
+          <div class="sub">Tap "+ Add Menu Item" below to get started.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const siteMenu = DATA.menu[currentMenuSite];
+
+  list.innerHTML = DATA.menuItems.map(item=>{
+    const entry = siteMenu[item.id] || {cost:0, price:0};
+    const {dollar, pct} = computeMargin(entry.cost, entry.price);
+    const marginClass = dollar < 0 ? "negative" : "";
+    return `
+      <div class="menu-item-row" data-id="${item.id}">
+        <div class="mi-top">
+          <span class="mi-name">${escapeHtml(item.name)}</span>
+          <div class="mi-actions">
+            <button class="icon-sm" data-action="rename" title="Rename">✎</button>
+            <button class="icon-sm danger" data-action="delete" title="Delete">🗑</button>
+          </div>
+        </div>
+        <div class="mi-fields">
+          <div class="mi-field">
+            <label>Cost</label>
+            <div class="input-wrap">
+              <span>$</span>
+              <input type="number" step="0.01" min="0" inputmode="decimal"
+                     data-field="cost" value="${entry.cost === 0 ? "" : entry.cost}" placeholder="0.00">
+            </div>
+          </div>
+          <div class="mi-field">
+            <label>Price</label>
+            <div class="input-wrap">
+              <span>$</span>
+              <input type="number" step="0.01" min="0" inputmode="decimal"
+                     data-field="price" value="${entry.price === 0 ? "" : entry.price}" placeholder="0.00">
+            </div>
+          </div>
+          <div class="mi-margin ${marginClass}">
+            Margin: $${dollar.toFixed(2)} (${pct.toFixed(0)}%)
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+document.getElementById("menuSiteToggle").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button[data-site]");
+  if(!btn) return;
+  currentMenuSite = btn.dataset.site;
+  renderMenuTab();
+});
+
+document.getElementById("addMenuItemBtn").addEventListener("click", async ()=>{
+  const name = await showPromptModal({title:"New menu item name:", placeholder:"e.g. Chicken Sandwich", confirmText:"Add"});
+  if(!name) return;
+  const id = slugify(name);
+  DATA.menuItems.push({id, name});
+  getVendorEntries().forEach(v=>{
+    if(!DATA.menu[v.key]) DATA.menu[v.key] = {};
+    DATA.menu[v.key][id] = {cost:0, price:0};
+  });
+  saveData();
+  renderMenuTab();
+  showToast(`Added "${name}"`);
+});
+
+document.getElementById("menuItemList").addEventListener("click", async (e)=>{
+  const actionBtn = e.target.closest("button[data-action]");
+  if(!actionBtn) return;
+  const row = actionBtn.closest(".menu-item-row");
+  const id = row.dataset.id;
+  const item = DATA.menuItems.find(i=>i.id === id);
+  if(!item) return;
+
+  if(actionBtn.dataset.action === "rename"){
+    const newName = await showPromptModal({title:"Rename item:", defaultValue:item.name, confirmText:"Save"});
+    if(newName){
+      item.name = newName;
+      saveData();
+      renderMenuTab();
+      showToast("Item renamed");
+    }
+  }
+
+  if(actionBtn.dataset.action === "delete"){
+    const ok = await showConfirmModal({title:"Delete menu item?", message:`Delete "${item.name}"? This removes its cost/price data for every site.`, confirmText:"Delete"});
+    if(ok){
+      DATA.menuItems = DATA.menuItems.filter(i=>i.id !== id);
+      getVendorEntries().forEach(v=>{
+        if(DATA.menu[v.key]) delete DATA.menu[v.key][id];
+      });
+      saveData();
+      renderMenuTab();
+      showToast(`Deleted "${item.name}"`);
+    }
+  }
+});
+
+document.getElementById("menuItemList").addEventListener("input",(e)=>{
+  const field = e.target.dataset.field;
+  if(!field) return;
+  const row = e.target.closest(".menu-item-row");
+  const id = row.dataset.id;
+  const val = parseFloat(e.target.value);
+  const entry = DATA.menu[currentMenuSite][id];
+  if(!entry) return;
+
+  entry[field] = isNaN(val) ? 0 : val;
+  saveData();
+
+  // Live-update margin display without rebuilding inputs (preserves focus/cursor)
+  const {dollar, pct} = computeMargin(entry.cost, entry.price);
+  const marginEl = row.querySelector(".mi-margin");
+  marginEl.textContent = `Margin: $${dollar.toFixed(2)} (${pct.toFixed(0)}%)`;
+  marginEl.classList.toggle("negative", dollar < 0);
+});
+
+function exportMenuData(){
+  const payload = { menuItems: DATA.menuItems, menu: DATA.menu };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `adp-menu-pricing-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Menu data exported");
+}
+
+function importMenuData(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.menuItems || !parsed.menu){
+        throw new Error("File does not contain menu data");
+      }
+      DATA.menuItems = parsed.menuItems;
+      DATA.menu = Object.assign({amazon:{}, walmart:{}}, parsed.menu);
+      scaffoldAllVendorSites();
+      saveData();
+      renderMenuTab();
+      showToast("Menu data imported");
+    }catch(err){
+      console.error(err);
+      showToast("Import failed — not a valid menu backup");
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportMenuBtn").addEventListener("click", exportMenuData);
+document.getElementById("importMenuBtn").addEventListener("click", ()=>{
+  document.getElementById("importMenuFile").click();
+});
+document.getElementById("importMenuFile").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(file) importMenuData(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   Payday Dates tab
+   ============================================================ */
+let currentPaydaySite = "amazon";
+
+function formatISO(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+// Returns the effective list of payday date strings (YYYY-MM-DD) for a site,
+// covering a rolling window (90 days back, 180 days forward) when recurring.
+// This is the function Shift Tracker will call to auto-tag cycle position.
+function getEffectivePaydayDates(site){
+  const cfg = DATA.paydays[site];
+  if(!cfg) return [];
+
+  if(cfg.mode === "manual"){
+    return (cfg.manualDates || []).slice().sort();
+  }
+
+  // recurring
+  if(!cfg.anchorDate || !cfg.intervalDays) return [];
+  const anchor = new Date(cfg.anchorDate + "T00:00:00");
+  if(isNaN(anchor)) return [];
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const windowStart = new Date(today); windowStart.setDate(windowStart.getDate() - 90);
+  const windowEnd = new Date(today); windowEnd.setDate(windowEnd.getDate() + 180);
+
+  let d = new Date(anchor);
+  // step backward until at or before windowStart
+  while(d > windowStart){
+    d.setDate(d.getDate() - cfg.intervalDays);
+  }
+  const dates = [];
+  while(d <= windowEnd){
+    if(d >= windowStart) dates.push(formatISO(d));
+    d = new Date(d.getTime());
+    d.setDate(d.getDate() + cfg.intervalDays);
+  }
+  return dates;
+}
+
+function renderPaydayConfigCard(){
+  const site = currentPaydaySite;
+  const cfg = DATA.paydays[site];
+  const card = document.getElementById("paydayConfigCard");
+
+  if(cfg.mode === "recurring"){
+    card.innerHTML = `
+      <div class="field-row">
+        <label class="field-label">First Known Payday (anchor date)</label>
+        <input type="date" class="field-input" id="anchorDateInput" value="${cfg.anchorDate || ""}">
+      </div>
+      <div class="field-row">
+        <label class="field-label">Repeats Every</label>
+        <select class="field-input" id="intervalSelect">
+          <option value="7"  ${cfg.intervalDays===7 ? "selected":""}>Week (7 days)</option>
+          <option value="14" ${cfg.intervalDays===14 ? "selected":""}>2 Weeks (14 days)</option>
+          <option value="28" ${cfg.intervalDays===28 ? "selected":""}>4 Weeks (28 days)</option>
+        </select>
+      </div>
+      <p style="margin:10px 0 0 0; font-size:12px; color:var(--muted);">
+        Dates auto-generate on a rolling window (90 days back, 180 days forward) — no need to keep re-entering them.
+      </p>
+    `;
+    document.getElementById("anchorDateInput").addEventListener("change",(e)=>{
+      DATA.paydays[site].anchorDate = e.target.value;
+      saveData();
+      renderPaydayPreview();
+      showToast("Anchor date saved");
+    });
+    document.getElementById("intervalSelect").addEventListener("change",(e)=>{
+      DATA.paydays[site].intervalDays = parseInt(e.target.value,10);
+      saveData();
+      renderPaydayPreview();
+      showToast("Interval saved");
+    });
+  } else {
+    card.innerHTML = `
+      <div class="inline-add">
+        <div class="field-row">
+          <label class="field-label">Add Payday</label>
+          <input type="date" class="field-input" id="manualDateInput">
+        </div>
+        <button id="addManualDateBtn">Add</button>
+      </div>
+      <p style="margin:10px 0 0 0; font-size:12px; color:var(--muted);">
+        Enter each payday individually. Best if paydays don't follow a fixed cycle.
+      </p>
+    `;
+    document.getElementById("addManualDateBtn").addEventListener("click",()=>{
+      const input = document.getElementById("manualDateInput");
+      const val = input.value;
+      if(!val) return;
+      const list = DATA.paydays[site].manualDates;
+      if(list.includes(val)){
+        showToast("That date is already added");
+        return;
+      }
+      list.push(val);
+      saveData();
+      input.value = "";
+      renderPaydayPreview();
+      showToast("Payday added");
+    });
+  }
+}
+
+function renderPaydayPreview(){
+  const site = currentPaydaySite;
+  const cfg = DATA.paydays[site];
+  const dates = getEffectivePaydayDates(site);
+  const list = document.getElementById("paydayPreviewList");
+
+  if(dates.length === 0){
+    list.innerHTML = `
+      <div class="empty-state" style="padding:10px 4px;">
+        <div class="sub">No paydays configured yet for ${escapeHtml(getVendorName(site))}.</div>
+      </div>
+    `;
+    return;
+  }
+
+  const todayStr = formatISO(new Date());
+  const nextPayday = dates.find(d => d >= todayStr);
+
+  list.innerHTML = dates.map(d=>{
+    const isNext = d === nextPayday;
+    const isPast = d < todayStr;
+    const dateObj = new Date(d + "T00:00:00");
+    const label = dateObj.toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric", year:"numeric"});
+    let badge = "";
+    if(isNext) badge = `<span class="badge next">Next</span>`;
+    else if(isPast) badge = `<span class="badge past">Past</span>`;
+
+    const deleteBtn = (cfg.mode === "manual")
+      ? `<button class="del-date" data-date="${d}" title="Remove">🗑</button>`
+      : "";
+
+    return `
+      <div class="date-row">
+        <span class="date-label">${label}${badge}</span>
+        ${deleteBtn}
+      </div>
+    `;
+  }).join("");
+
+  if(cfg.mode === "manual"){
+    list.querySelectorAll(".del-date").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const d = btn.dataset.date;
+        DATA.paydays[site].manualDates = DATA.paydays[site].manualDates.filter(x=>x!==d);
+        saveData();
+        renderPaydayPreview();
+        showToast("Payday removed");
+      });
+    });
+  }
+}
+
+function renderPaydaysTab(){
+  currentPaydaySite = resolveActiveSite(currentPaydaySite);
+  renderSiteToggle("paydaySiteToggle", currentPaydaySite);
+  const cfg = DATA.paydays[currentPaydaySite];
+  document.querySelectorAll("#paydayModeToggle button").forEach(b=>{
+    b.classList.toggle("active", b.dataset.mode === cfg.mode);
+  });
+  renderPaydayConfigCard();
+  renderPaydayPreview();
+}
+
+document.getElementById("paydaySiteToggle").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button[data-site]");
+  if(!btn) return;
+  currentPaydaySite = btn.dataset.site;
+  renderPaydaysTab();
+});
+
+document.getElementById("paydayModeToggle").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button[data-mode]");
+  if(!btn) return;
+  DATA.paydays[currentPaydaySite].mode = btn.dataset.mode;
+  saveData();
+  renderPaydaysTab();
+});
+
+function exportPaydaysData(){
+  const payload = { paydays: DATA.paydays };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `adp-paydays-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Payday data exported");
+}
+
+function importPaydaysData(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.paydays){
+        throw new Error("File does not contain payday data");
+      }
+      DATA.paydays = Object.assign(
+        { amazon:{mode:"recurring",anchorDate:"",intervalDays:14,manualDates:[]},
+          walmart:{mode:"recurring",anchorDate:"",intervalDays:14,manualDates:[]} },
+        parsed.paydays
+      );
+      scaffoldAllVendorSites();
+      saveData();
+      renderPaydaysTab();
+      showToast("Payday data imported");
+    }catch(err){
+      console.error(err);
+      showToast("Import failed — not a valid paydays backup");
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportPaydaysBtn").addEventListener("click", exportPaydaysData);
+document.getElementById("importPaydaysBtn").addEventListener("click", ()=>{
+  document.getElementById("importPaydaysFile").click();
+});
+document.getElementById("importPaydaysFile").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(file) importPaydaysData(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   ADP Member List tab
+   ============================================================ */
+let expandedMemberIds = new Set();
+
+function genMemberId(){
+  return "m_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+function formatFullDate(dstr){
+  const d = new Date(dstr + (dstr.length <= 10 ? "T00:00:00" : ""));
+  if(isNaN(d)) return dstr;
+  return d.toLocaleDateString(undefined,{month:"short", day:"numeric", year:"numeric"});
+}
+
+function sortedMemberList(){
+  return Object.values(DATA.members).sort((a,b)=>{
+    if(a.role !== b.role) return a.role === "Leader" ? -1 : 1;
+    return (a.name || "").localeCompare(b.name || "");
+  });
+}
+
+function renderMembersTab(){
+  const list = document.getElementById("memberList");
+  const members = sortedMemberList();
+
+  if(members.length === 0){
+    list.innerHTML = `
+      <div class="card">
+        <div class="empty-state">
+          <div class="big">👥</div>
+          <div class="msg">No members yet</div>
+          <div class="sub">Tap "+ Add Member" above to add your first leader or team member.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = members.map(m=>{
+    const isOpen = expandedMemberIds.has(m.id);
+    const siteBadges = (m.sites || []).map(s=>
+      `<span class="badge-site">${escapeHtml(getVendorName(s))}</span>`
+    ).join("");
+    const roleClass = m.role === "Leader" ? "leader" : "member";
+    const scoreLabel = m.score ? `${m.score}/5` : "Unrated";
+
+    const notesSorted = (m.notes || []).slice().sort((a,b)=> b.date.localeCompare(a.date));
+    const notesHtml = notesSorted.length === 0
+      ? `<div class="notes-list empty">No notes yet.</div>`
+      : `<div class="notes-list">${notesSorted.map(n=>`
+          <div class="note-row" data-note-date="${n.date}">
+            <div class="note-row-top">
+              <span class="note-date">${formatFullDate(n.date)}</span>
+              <button class="note-del" data-action="delete-note" data-date="${n.date}" title="Delete note">🗑</button>
+            </div>
+            <div class="note-text">${escapeHtml(n.text)}</div>
+          </div>
+        `).join("")}</div>`;
+
+    const starsHtml = [1,2,3,4,5].map(n=>`
+      <button class="star-btn ${m.score >= n ? "filled" : ""}" data-action="set-score" data-value="${n}">★</button>
+    `).join("");
+
+    return `
+      <div class="member-card" data-id="${m.id}">
+        <div class="member-header" data-action="toggle">
+          <div class="member-header-left">
+            <span class="member-name-display">${escapeHtml(m.name || "Unnamed")}</span>
+            <div class="member-badges">
+              <span class="badge-role ${roleClass}">${m.role}</span>
+              ${siteBadges}
+              <span class="badge-score">★ ${scoreLabel}</span>
+            </div>
+          </div>
+          <span class="chevron ${isOpen ? "open":""}">▼</span>
+        </div>
+        ${isOpen ? `
+        <div class="member-body">
+          <div class="field-row" style="margin-top:12px;">
+            <label class="field-label">Name</label>
+            <input type="text" class="field-input" data-field="name" value="${escapeHtml(m.name || "")}">
+          </div>
+          <div class="field-row">
+            <label class="field-label">Phone</label>
+            <input type="tel" class="field-input" data-field="phone" value="${escapeHtml(m.phone || "")}" placeholder="(555) 555-5555">
+          </div>
+          <div class="field-row">
+            <label class="field-label">Sites Known</label>
+            <div class="site-check-row">
+              ${getVendorEntries().map(v=>
+                `<label><input type="checkbox" data-site="${v.key}" ${(m.sites||[]).includes(v.key) ? "checked":""}> ${escapeHtml(v.name)}</label>`
+              ).join("")}
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="field-label">Role</label>
+            <div class="role-toggle">
+              <button data-action="set-role" data-value="Leader" class="${m.role==="Leader"?"active":""}">Leader</button>
+              <button data-action="set-role" data-value="Member" class="${m.role==="Member"?"active":""}">Member</button>
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="field-label">Overall Score</label>
+            <div class="star-row">${starsHtml}</div>
+          </div>
+
+          <div class="notes-header">
+            <label class="field-label" style="margin:0;">Notes History</label>
+            <button class="add-note-btn" data-action="add-note">+ Add Note</button>
+          </div>
+          ${notesHtml}
+
+          <button class="danger-btn" data-action="delete-member">🗑 Delete Member</button>
+        </div>
+        ` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+document.getElementById("addMemberBtn").addEventListener("click", async ()=>{
+  const name = await showPromptModal({title:"New member name:", placeholder:"e.g. Jordan Smith", confirmText:"Add"});
+  if(!name) return;
+  const id = genMemberId();
+  DATA.members[id] = {
+    id, name, phone:"", sites:[], role:"Member", score:0, notes:[]
+  };
+  saveData();
+  expandedMemberIds.add(id);
+  renderMembersTab();
+  showToast(`Added "${name}"`);
+});
+
+document.getElementById("memberList").addEventListener("click", async (e)=>{
+  const card = e.target.closest(".member-card");
+  if(!card) return;
+  const id = card.dataset.id;
+  const member = DATA.members[id];
+  if(!member) return;
+
+  const toggleTarget = e.target.closest('[data-action="toggle"]');
+  if(toggleTarget){
+    if(expandedMemberIds.has(id)) expandedMemberIds.delete(id);
+    else expandedMemberIds.add(id);
+    renderMembersTab();
+    return;
+  }
+
+  const roleBtn = e.target.closest('[data-action="set-role"]');
+  if(roleBtn){
+    member.role = roleBtn.dataset.value;
+    saveData();
+    renderMembersTab();
+    return;
+  }
+
+  const starBtn = e.target.closest('[data-action="set-score"]');
+  if(starBtn){
+    const val = parseInt(starBtn.dataset.value,10);
+    member.score = (member.score === val) ? 0 : val; // tap same star again to clear
+    saveData();
+    renderMembersTab();
+    return;
+  }
+
+  const addNoteBtn = e.target.closest('[data-action="add-note"]');
+  if(addNoteBtn){
+    const text = await showPromptModal({title:"New note:", placeholder:"Note text", confirmText:"Add"});
+    if(text){
+      const today = formatISO(new Date());
+      member.notes = member.notes || [];
+      member.notes.push({date: today, text});
+      saveData();
+      renderMembersTab();
+      showToast("Note added");
+    }
+    return;
+  }
+
+  const delNoteBtn = e.target.closest('[data-action="delete-note"]');
+  if(delNoteBtn){
+    const noteRow = delNoteBtn.closest(".note-row");
+    const date = delNoteBtn.dataset.date;
+    const text = noteRow.querySelector(".note-text").textContent;
+    const ok = await showConfirmModal({title:"Delete note?", message:"Delete this note?", confirmText:"Delete"});
+    if(ok){
+      const idx = member.notes.findIndex(n=> n.date === date && n.text === text);
+      if(idx > -1) member.notes.splice(idx,1);
+      saveData();
+      renderMembersTab();
+      showToast("Note deleted");
+    }
+    return;
+  }
+
+  const delMemberBtn = e.target.closest('[data-action="delete-member"]');
+  if(delMemberBtn){
+    const ok = await showConfirmModal({title:"Delete member?", message:`Delete "${member.name}"? This cannot be undone.`, confirmText:"Delete"});
+    if(ok){
+      delete DATA.members[id];
+      expandedMemberIds.delete(id);
+      saveData();
+      renderMembersTab();
+      showToast(`Deleted "${member.name}"`);
+    }
+    return;
+  }
+});
+
+document.getElementById("memberList").addEventListener("input",(e)=>{
+  const field = e.target.dataset.field;
+  if(!field) return;
+  const card = e.target.closest(".member-card");
+  const id = card.dataset.id;
+  const member = DATA.members[id];
+  if(!member) return;
+  member[field] = e.target.value;
+  saveData();
+
+  if(field === "name"){
+    const nameDisplay = card.querySelector(".member-name-display");
+    if(nameDisplay) nameDisplay.textContent = e.target.value || "Unnamed";
+  }
+});
+
+document.getElementById("memberList").addEventListener("change",(e)=>{
+  const site = e.target.dataset.site;
+  if(!site) return;
+  const card = e.target.closest(".member-card");
+  const id = card.dataset.id;
+  const member = DATA.members[id];
+  if(!member) return;
+  member.sites = member.sites || [];
+  if(e.target.checked){
+    if(!member.sites.includes(site)) member.sites.push(site);
+  } else {
+    member.sites = member.sites.filter(s=>s!==site);
+  }
+  saveData();
+  renderMembersTab();
+});
+
+function exportMembersData(){
+  const payload = { members: DATA.members };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `adp-members-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Member data exported");
+}
+
+function importMembersData(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.members){
+        throw new Error("File does not contain member data");
+      }
+      DATA.members = parsed.members;
+      expandedMemberIds = new Set();
+      saveData();
+      renderMembersTab();
+      showToast("Member data imported");
+    }catch(err){
+      console.error(err);
+      showToast("Import failed — not a valid members backup");
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportMembersBtn").addEventListener("click", exportMembersData);
+document.getElementById("importMembersBtn").addEventListener("click", ()=>{
+  document.getElementById("importMembersFile").click();
+});
+document.getElementById("importMembersFile").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(file) importMembersData(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   Vendor Info tab
+   ============================================================ */
+let expandedVendorIds = new Set(["amazon"]); // Amazon open by default on first view
+
+function genVendorId(){
+  return "v_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+function getVendorEntries(){
+  const fixed = [
+    {key:"amazon", isFixed:true, name:"Amazon", data: DATA.vendors.amazon},
+    {key:"walmart", isFixed:true, name:"Walmart", data: DATA.vendors.walmart}
+  ];
+  const extras = (DATA.vendors.extra || []).map(v=>({
+    key:v.id, isFixed:false, name:v.name, data:v
+  })).sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+  return fixed.concat(extras);
+}
+
+function vendorCardHtml(entry){
+  const isOpen = expandedVendorIds.has(entry.key);
+  const d = entry.data;
+  const equip = d.equipment || "Fridge";
+
+  return `
+    <div class="member-card" data-key="${entry.key}" data-fixed="${entry.isFixed}">
+      <div class="member-header" data-action="toggle">
+        <div class="member-header-left">
+          <span class="member-name-display">${escapeHtml(entry.name || "Unnamed Vendor")}</span>
+          <div class="member-badges">
+            ${entry.isFixed ? `<span class="badge-fixed">Core Site</span>` : `<span class="badge-fixed">Added</span>`}
+            <span class="badge-site">${escapeHtml(equip)}</span>
+          </div>
+        </div>
+        <span class="chevron ${isOpen ? "open":""}">▼</span>
+      </div>
+      ${isOpen ? `
+      <div class="member-body">
+        ${entry.isFixed ? "" : `
+        <div class="field-row" style="margin-top:12px;">
+          <label class="field-label">Vendor Name</label>
+          <input type="text" class="field-input" data-field="name" value="${escapeHtml(d.name || "")}">
+        </div>
+        `}
+        <div class="field-row" style="margin-top:${entry.isFixed ? "12px" : "0"};">
+          <label class="field-label">Contact Name</label>
+          <input type="text" class="field-input" data-field="contactName" value="${escapeHtml(d.contactName || "")}">
+        </div>
+        <div class="field-row">
+          <label class="field-label">Contact Phone</label>
+          <input type="tel" class="field-input" data-field="contactPhone" value="${escapeHtml(d.contactPhone || "")}" placeholder="(555) 555-5555">
+        </div>
+        <div class="field-row">
+          <label class="field-label">Contact Email</label>
+          <input type="email" class="field-input" data-field="contactEmail" value="${escapeHtml(d.contactEmail || "")}" placeholder="name@example.com">
+        </div>
+        <div class="field-row">
+          <label class="field-label">Break Schedule</label>
+          <textarea class="field-textarea" data-field="breakSchedule" rows="2">${escapeHtml(d.breakSchedule || "")}</textarea>
+        </div>
+        <div class="field-row">
+          <label class="field-label">On-Site Equipment</label>
+          <select class="field-input" data-field="equipment">
+            <option value="Fridge" ${equip==="Fridge"?"selected":""}>Fridge</option>
+            <option value="Coolers" ${equip==="Coolers"?"selected":""}>Coolers</option>
+            <option value="Other" ${equip==="Other"?"selected":""}>Other</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Access / Parking Notes</label>
+          <textarea class="field-textarea" data-field="accessNotes" rows="2">${escapeHtml(d.accessNotes || "")}</textarea>
+        </div>
+        <div class="field-row">
+          <label class="field-label">General Notes</label>
+          <textarea class="field-textarea" data-field="notes" rows="2">${escapeHtml(d.notes || "")}</textarea>
+        </div>
+        ${entry.isFixed ? "" : `
+        <button class="danger-btn" data-action="delete-vendor">🗑 Delete Vendor</button>
+        `}
+      </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function renderVendorsTab(){
+  const list = document.getElementById("vendorList");
+  const entries = getVendorEntries();
+  list.innerHTML = entries.map(vendorCardHtml).join("");
+}
+
+function getVendorDataByKey(key){
+  if(key === "amazon") return DATA.vendors.amazon;
+  if(key === "walmart") return DATA.vendors.walmart;
+  return (DATA.vendors.extra || []).find(v=>v.id === key);
+}
+
+document.getElementById("addVendorBtn").addEventListener("click", async ()=>{
+  const name = await showPromptModal({title:"New vendor site name:", placeholder:"e.g. Publix DC", confirmText:"Add"});
+  if(!name) return;
+  const id = genVendorId();
+  DATA.vendors.extra = DATA.vendors.extra || [];
+  DATA.vendors.extra.push({
+    id, name, contactName:"", contactPhone:"", contactEmail:"",
+    breakSchedule:"", equipment:"Fridge", accessNotes:"", notes:""
+  });
+  ensureSiteDataScaffold(id);
+  saveData();
+  expandedVendorIds.add(id);
+  renderVendorsTab();
+  showToast(`Added "${name}" — now available in Menu, Paydays, Shift Tracker & Members`);
+});
+
+document.getElementById("vendorList").addEventListener("click", async (e)=>{
+  const card = e.target.closest(".member-card");
+  if(!card) return;
+  const key = card.dataset.key;
+  const isFixed = card.dataset.fixed === "true";
+  const data = getVendorDataByKey(key);
+  if(!data) return;
+
+  const toggleTarget = e.target.closest('[data-action="toggle"]');
+  if(toggleTarget){
+    if(expandedVendorIds.has(key)) expandedVendorIds.delete(key);
+    else expandedVendorIds.add(key);
+    renderVendorsTab();
+    return;
+  }
+
+  const delBtn = e.target.closest('[data-action="delete-vendor"]');
+  if(delBtn && !isFixed){
+    const ok = await showConfirmModal({title:"Delete vendor?", message:`Delete "${data.name}"? This cannot be undone.`, confirmText:"Delete"});
+    if(ok){
+      DATA.vendors.extra = DATA.vendors.extra.filter(v=>v.id !== key);
+      expandedVendorIds.delete(key);
+      saveData();
+      renderVendorsTab();
+      showToast(`Deleted "${data.name}"`);
+    }
+    return;
+  }
+});
+
+document.getElementById("vendorList").addEventListener("input",(e)=>{
+  const field = e.target.dataset.field;
+  if(!field) return;
+  const card = e.target.closest(".member-card");
+  const key = card.dataset.key;
+  const data = getVendorDataByKey(key);
+  if(!data) return;
+  data[field] = e.target.value;
+  saveData();
+
+  if(field === "name"){
+    const nameDisplay = card.querySelector(".member-name-display");
+    if(nameDisplay) nameDisplay.textContent = e.target.value || "Unnamed Vendor";
+  }
+});
+
+document.getElementById("vendorList").addEventListener("change",(e)=>{
+  const field = e.target.dataset.field;
+  if(field !== "equipment") return;
+  const card = e.target.closest(".member-card");
+  const key = card.dataset.key;
+  const data = getVendorDataByKey(key);
+  if(!data) return;
+  data.equipment = e.target.value;
+  saveData();
+  renderVendorsTab();
+});
+
+function exportVendorsData(){
+  const payload = { vendors: DATA.vendors };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `adp-vendors-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Vendor data exported");
+}
+
+function importVendorsData(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.vendors){
+        throw new Error("File does not contain vendor data");
+      }
+      DATA.vendors = Object.assign(
+        { amazon:{}, walmart:{}, extra:[] },
+        parsed.vendors
+      );
+      scaffoldAllVendorSites();
+      saveData();
+      renderVendorsTab();
+      showToast("Vendor data imported");
+    }catch(err){
+      console.error(err);
+      showToast("Import failed — not a valid vendors backup");
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportVendorsBtn").addEventListener("click", exportVendorsData);
+document.getElementById("importVendorsBtn").addEventListener("click", ()=>{
+  document.getElementById("importVendorsFile").click();
+});
+document.getElementById("importVendorsFile").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(file) importVendorsData(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   Shift Tracker tab
+   ============================================================ */
+let shiftFormOpen = false;
+let editingShiftId = null;
+let currentFormSite = "amazon";
+
+function genShiftId(){
+  return "s_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+// Exact cycle-position tag for a given site + date, independent of "today".
+// Used by Shift Tracker to auto-tag each logged shift.
+function getCycleTagForDate(site, dateStr){
+  const cfg = DATA.paydays[site];
+  if(!cfg || !dateStr) return "—";
+
+  if(cfg.mode === "manual"){
+    const dates = (cfg.manualDates || []).slice().sort();
+    if(dates.length === 0) return "No payday data";
+    const past = dates.filter(d=> d <= dateStr);
+    if(past.length === 0) return "Before first payday";
+    const last = past[past.length-1];
+    if(last === dateStr) return "Payday";
+    const diff = Math.round((new Date(dateStr+"T00:00:00") - new Date(last+"T00:00:00")) / 86400000);
+    return `Day ${diff} post-payday`;
+  }
+
+  if(!cfg.anchorDate || !cfg.intervalDays) return "No payday data";
+  const anchor = new Date(cfg.anchorDate + "T00:00:00");
+  const target = new Date(dateStr + "T00:00:00");
+  if(isNaN(anchor) || isNaN(target)) return "—";
+  const diffFromAnchor = Math.round((target - anchor) / 86400000);
+  const mod = ((diffFromAnchor % cfg.intervalDays) + cfg.intervalDays) % cfg.intervalDays;
+  return mod === 0 ? "Payday" : `Day ${mod} post-payday`;
+}
+
+// Core per-shift math. itemsMap: {itemId: {brought, leftover}}
+function computeShiftMetrics(site, headcount, transactions, itemsMap){
+  const hc = Number(headcount) || 0;
+  const tx = Number(transactions) || 0;
+  const captureRatePct = hc > 0 ? (tx / hc) * 100 : null;
+
+  let totalBrought = 0, totalLeftover = 0, revenue = 0, costAllBrought = 0;
+  const siteMenu = DATA.menu[site] || {};
+
+  Object.keys(itemsMap || {}).forEach(itemId=>{
+    const entry = itemsMap[itemId] || {};
+    const brought = Number(entry.brought) || 0;
+    const leftover = Number(entry.leftover) || 0;
+    const sold = Math.max(brought - leftover, 0);
+    const pricing = siteMenu[itemId] || {cost:0, price:0};
+
+    totalBrought += brought;
+    totalLeftover += leftover;
+    revenue += sold * (Number(pricing.price) || 0);
+    costAllBrought += brought * (Number(pricing.cost) || 0);
+  });
+
+  const wastePct = totalBrought > 0 ? (totalLeftover / totalBrought) * 100 : null;
+  const profit = revenue - costAllBrought;
+  const marginPct = revenue > 0 ? (profit / revenue) * 100 : null;
+
+  return {captureRatePct, totalBrought, totalLeftover, wastePct, revenue, costAllBrought, profit, marginPct};
+}
+
+// Aggregates metrics across multiple shifts (used by Home / Site Comparison / Trailing Averages later)
+function aggregateShiftMetrics(shiftsArr){
+  let totalHc = 0, totalTx = 0, totalBrought = 0, totalLeftover = 0, revenue = 0, costAllBrought = 0;
+  shiftsArr.forEach(s=>{
+    totalHc += Number(s.headcount) || 0;
+    totalTx += Number(s.transactions) || 0;
+    const siteMenu = DATA.menu[s.site] || {};
+    Object.keys(s.items || {}).forEach(itemId=>{
+      const entry = s.items[itemId] || {};
+      const brought = Number(entry.brought) || 0;
+      const leftover = Number(entry.leftover) || 0;
+      const sold = Math.max(brought - leftover, 0);
+      const pricing = siteMenu[itemId] || {cost:0, price:0};
+      totalBrought += brought;
+      totalLeftover += leftover;
+      revenue += sold * (Number(pricing.price) || 0);
+      costAllBrought += brought * (Number(pricing.cost) || 0);
+    });
+  });
+  const captureRatePct = totalHc > 0 ? (totalTx / totalHc) * 100 : null;
+  const wastePct = totalBrought > 0 ? (totalLeftover / totalBrought) * 100 : null;
+  const profit = revenue - costAllBrought;
+  const marginPct = revenue > 0 ? (profit / revenue) * 100 : null;
+  return {captureRatePct, wastePct, marginPct, profit, revenue};
+}
+
+function readItemsFromForm(){
+  const map = {};
+  document.querySelectorAll("#shiftFormCard .item-grid-row").forEach(row=>{
+    const id = row.dataset.itemId;
+    const brought = parseFloat(row.querySelector('[data-field="brought"]').value) || 0;
+    const leftover = parseFloat(row.querySelector('[data-field="leftover"]').value) || 0;
+    map[id] = {brought, leftover};
+  });
+  return map;
+}
+
+function updateShiftFormSummary(){
+  const card = document.getElementById("shiftFormCard");
+  if(!card) return;
+  const headcount = parseFloat(document.getElementById("shiftHeadcountInput").value) || 0;
+  const transactions = parseFloat(document.getElementById("shiftTransactionsInput").value) || 0;
+  const dateVal = document.getElementById("shiftDateInput").value;
+  const itemsMap = readItemsFromForm();
+  const m = computeShiftMetrics(currentFormSite, headcount, transactions, itemsMap);
+
+  document.getElementById("formCaptureRateVal").textContent =
+    m.captureRatePct === null ? "—" : m.captureRatePct.toFixed(0) + "%";
+
+  const wasteCard = document.getElementById("formWasteCard");
+  document.getElementById("formWasteVal").textContent =
+    m.wastePct === null ? "—" : m.wastePct.toFixed(0) + "%";
+  wasteCard.classList.toggle("ok", m.wastePct !== null && m.wastePct <= 27);
+  wasteCard.classList.toggle("warn", m.wastePct !== null && m.wastePct > 27);
+
+  document.getElementById("formMarginVal").textContent =
+    m.marginPct === null ? "—" : m.marginPct.toFixed(0) + "%";
+
+  document.getElementById("formCycleTagVal").textContent = getCycleTagForDate(currentFormSite, dateVal);
+}
+
+function buildItemGridRows(existingItems){
+  return DATA.menuItems.map(item=>{
+    const entry = existingItems[item.id] || {brought:0, leftover:0};
+    return `
+      <div class="item-grid-row" data-item-id="${item.id}">
+        <span class="item-name">${escapeHtml(item.name)}</span>
+        <input type="number" min="0" step="1" inputmode="numeric" data-field="brought" value="${entry.brought || ""}" placeholder="0">
+        <input type="number" min="0" step="1" inputmode="numeric" data-field="leftover" value="${entry.leftover || ""}" placeholder="0">
+      </div>
+    `;
+  }).join("");
+}
+
+function buildShiftFormHtml(){
+  const shift = editingShiftId ? DATA.shifts.find(s=>s.id === editingShiftId) : null;
+  const date = shift ? shift.date : formatISO(new Date());
+  const headcount = shift ? shift.headcount : "";
+  const transactions = shift ? shift.transactions : "";
+  const leaderId = shift ? shift.leaderId : "";
+  const notes = shift ? shift.notes : "";
+  const existingItems = shift ? (shift.items || {}) : {};
+
+  const leaderOptions = sortedMemberList().map(m=>
+    `<option value="${m.id}" ${leaderId === m.id ? "selected":""}>${escapeHtml(m.name)}${m.role==="Leader" ? " (Leader)" : ""}</option>`
+  ).join("");
+
+  const m0 = computeShiftMetrics(currentFormSite, headcount, transactions, existingItems);
+  const wasteClass0 = m0.wastePct === null ? "" : (m0.wastePct <= 27 ? "ok" : "warn");
+
+  return `
+    <div class="shift-form-card" id="shiftFormCard">
+      <h3>${editingShiftId ? "Edit Shift" : "Log New Shift"}</h3>
+      <p style="margin:0 0 12px 0; font-size:12.5px; color:var(--muted);">
+        ${editingShiftId ? "Update the details below and save." : "Fill in what you have — you can edit this later."}
+      </p>
+
+      <div class="segmented" id="shiftFormSiteToggle">
+        ${buildSiteToggleButtonsHtml(currentFormSite)}
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Date</label>
+        <input type="date" class="field-input" id="shiftDateInput" value="${date}">
+      </div>
+
+      <div class="field-row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+          <label class="field-label">Headcount</label>
+          <input type="number" min="0" step="1" inputmode="numeric" class="field-input" id="shiftHeadcountInput" value="${headcount}" placeholder="0">
+        </div>
+        <div>
+          <label class="field-label">Transactions</label>
+          <input type="number" min="0" step="1" inputmode="numeric" class="field-input" id="shiftTransactionsInput" value="${transactions}" placeholder="0">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Leader On Duty</label>
+        <select class="field-input" id="shiftLeaderSelect">
+          <option value="">— Unassigned —</option>
+          ${leaderOptions}
+        </select>
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Payday Cycle Tag</label>
+        <div class="cycle-readout" id="formCycleTagVal">${getCycleTagForDate(currentFormSite, date)}</div>
+      </div>
+
+      <div class="section-label" style="margin-top:18px;">Item-Level Brought / Leftover</div>
+      <div class="item-grid-header"><span>Item</span><span>Brought</span><span>Leftover</span></div>
+      <div id="itemGridBody">${buildItemGridRows(existingItems)}</div>
+
+      <div class="form-summary">
+        <div class="stat-card"><div class="val" id="formCaptureRateVal">${m0.captureRatePct===null?"—":m0.captureRatePct.toFixed(0)+"%"}</div><div class="lbl">Capture Rate</div></div>
+        <div class="stat-card ${wasteClass0}" id="formWasteCard"><div class="val" id="formWasteVal">${m0.wastePct===null?"—":m0.wastePct.toFixed(0)+"%"}</div><div class="lbl">Waste %</div></div>
+        <div class="stat-card"><div class="val" id="formMarginVal">${m0.marginPct===null?"—":m0.marginPct.toFixed(0)+"%"}</div><div class="lbl">Margin</div></div>
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Notes / Anomalies</label>
+        <textarea class="field-textarea" id="shiftNotesInput" rows="3" placeholder="Anything unusual — stockouts, weather, equipment issues...">${escapeHtml(notes || "")}</textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="cancelShiftBtn">Cancel</button>
+        <button class="btn primary" id="saveShiftBtn">${editingShiftId ? "Save Changes" : "Save Shift"}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderShiftFormArea(){
+  const area = document.getElementById("shiftFormArea");
+  if(!shiftFormOpen){
+    area.innerHTML = `<button class="add-item-btn" id="logNewShiftBtn">+ Log New Shift</button>`;
+    document.getElementById("logNewShiftBtn").addEventListener("click", ()=>{
+      editingShiftId = null;
+      currentFormSite = "amazon";
+      shiftFormOpen = true;
+      renderShiftFormArea();
+      scrollToShiftForm();
+    });
+    return;
+  }
+
+  area.innerHTML = buildShiftFormHtml();
+
+  // Site toggle (form-scoped; doesn't rebuild the rest of the form so typed values survive)
+  document.getElementById("shiftFormSiteToggle").addEventListener("click",(e)=>{
+    const btn = e.target.closest("button[data-site]");
+    if(!btn) return;
+    currentFormSite = btn.dataset.site;
+    document.querySelectorAll("#shiftFormSiteToggle button").forEach(b=>{
+      b.classList.toggle("active", b.dataset.site === currentFormSite);
+    });
+    updateShiftFormSummary();
+  });
+
+  const card = document.getElementById("shiftFormCard");
+  card.addEventListener("input", updateShiftFormSummary);
+  card.addEventListener("change", updateShiftFormSummary);
+
+  document.getElementById("cancelShiftBtn").addEventListener("click", closeShiftForm);
+  document.getElementById("saveShiftBtn").addEventListener("click", saveShiftFromForm);
+}
+
+function scrollToShiftForm(){
+  setTimeout(()=>{
+    const el = document.getElementById("shiftFormCard");
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  }, 30);
+}
+
+function closeShiftForm(){
+  shiftFormOpen = false;
+  editingShiftId = null;
+  renderShiftFormArea();
+}
+
+function saveShiftFromForm(){
+  const date = document.getElementById("shiftDateInput").value;
+  if(!date){
+    showToast("Please enter a date");
+    return;
+  }
+  const headcount = parseFloat(document.getElementById("shiftHeadcountInput").value) || 0;
+  const transactions = parseFloat(document.getElementById("shiftTransactionsInput").value) || 0;
+  const leaderId = document.getElementById("shiftLeaderSelect").value;
+  const notes = document.getElementById("shiftNotesInput").value;
+  const formItems = readItemsFromForm();
+
+  if(editingShiftId){
+    const shift = DATA.shifts.find(s=>s.id === editingShiftId);
+    if(shift){
+      shift.site = currentFormSite;
+      shift.date = date;
+      shift.headcount = headcount;
+      shift.transactions = transactions;
+      shift.leaderId = leaderId;
+      shift.notes = notes;
+      // merge so any historical item ids no longer on the current menu aren't lost
+      shift.items = Object.assign({}, shift.items || {}, formItems);
+    }
+    showToast("Shift updated");
+  } else {
+    DATA.shifts.push({
+      id: genShiftId(),
+      site: currentFormSite,
+      date, headcount, transactions, leaderId, notes,
+      items: formItems
+    });
+    showToast("Shift logged");
+  }
+
+  saveData();
+  closeShiftForm();
+  renderShiftHistory();
+}
+
+let expandedShiftIds = new Set();
+
+function renderShiftHistory(){
+  const list = document.getElementById("shiftHistoryList");
+  const shifts = DATA.shifts.slice().sort((a,b)=> b.date.localeCompare(a.date));
+
+  if(shifts.length === 0){
+    list.innerHTML = `
+      <div class="card">
+        <div class="empty-state">
+          <div class="big">📋</div>
+          <div class="msg">No shifts logged yet</div>
+          <div class="sub">Tap "+ Log New Shift" above to add your first entry.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = shifts.map(s=>{
+    const isOpen = expandedShiftIds.has(s.id);
+    const m = computeShiftMetrics(s.site, s.headcount, s.transactions, s.items || {});
+    const wasteClass = m.wastePct === null ? "" : (m.wastePct <= 27 ? "ok" : "warn");
+    const leader = s.leaderId && DATA.members[s.leaderId] ? DATA.members[s.leaderId].name : "Unassigned";
+    const cycleTag = getCycleTagForDate(s.site, s.date);
+    const dateLabel = new Date(s.date + "T00:00:00").toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric", year:"numeric"});
+
+    const itemRows = DATA.menuItems.map(item=>{
+      const entry = (s.items || {})[item.id] || {brought:0, leftover:0};
+      if(!entry.brought && !entry.leftover) return "";
+      const sold = Math.max((entry.brought||0) - (entry.leftover||0), 0);
+      return `
+        <div class="date-row">
+          <span>${escapeHtml(item.name)}</span>
+          <span style="color:var(--muted); font-size:12.5px;">brought ${entry.brought||0} · sold ${sold} · left ${entry.leftover||0}</span>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="member-card" data-id="${s.id}">
+        <div class="member-header" data-action="toggle-shift">
+          <div class="member-header-left">
+            <span class="member-name-display">${escapeHtml(getVendorName(s.site))} — ${dateLabel}</span>
+            <div class="member-badges">
+              <span class="badge-metric">${m.captureRatePct===null?"—":m.captureRatePct.toFixed(0)+"% capture"}</span>
+              <span class="badge-metric ${wasteClass}">${m.wastePct===null?"—":m.wastePct.toFixed(0)+"% waste"}</span>
+              <span class="badge-metric">${m.marginPct===null?"—":m.marginPct.toFixed(0)+"% margin"}</span>
+            </div>
+          </div>
+          <span class="chevron ${isOpen?"open":""}">▼</span>
+        </div>
+        ${isOpen ? `
+        <div class="member-body">
+          <div style="margin-top:12px; font-size:13px; color:var(--muted);">
+            Leader: <strong style="color:var(--ink);">${escapeHtml(leader)}</strong> &middot;
+            Cycle: <strong style="color:var(--ink);">${cycleTag}</strong> &middot;
+            Headcount ${s.headcount||0} &middot; Transactions ${s.transactions||0}
+          </div>
+          ${itemRows ? `<div class="notes-list" style="margin-top:10px;">${itemRows}</div>` : ""}
+          ${s.notes ? `<div class="field-row" style="margin-top:12px;"><label class="field-label">Notes</label><div style="font-size:13.5px;">${escapeHtml(s.notes)}</div></div>` : ""}
+          <div class="btn-row">
+            <button class="btn" data-action="edit-shift">✎ Edit</button>
+            <button class="btn" style="color:var(--amber); border-color:var(--amber);" data-action="delete-shift">🗑 Delete</button>
+          </div>
+        </div>
+        ` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+document.getElementById("shiftHistoryList").addEventListener("click", async (e)=>{
+  const card = e.target.closest(".member-card");
+  if(!card) return;
+  const id = card.dataset.id;
+
+  if(e.target.closest('[data-action="toggle-shift"]')){
+    if(expandedShiftIds.has(id)) expandedShiftIds.delete(id);
+    else expandedShiftIds.add(id);
+    renderShiftHistory();
+    return;
+  }
+
+  if(e.target.closest('[data-action="edit-shift"]')){
+    editingShiftId = id;
+    const shift = DATA.shifts.find(s=>s.id===id);
+    currentFormSite = resolveActiveSite(shift ? shift.site : "amazon");
+    shiftFormOpen = true;
+    renderShiftFormArea();
+    scrollToShiftForm();
+    return;
+  }
+
+  if(e.target.closest('[data-action="delete-shift"]')){
+    const shift = DATA.shifts.find(s=>s.id===id);
+    if(!shift) return;
+    const ok = await showConfirmModal({title:"Delete shift?", message:`Delete the ${escapeHtml(getVendorName(shift.site))} shift on ${shift.date}? This cannot be undone.`, confirmText:"Delete"});
+    if(ok){
+      DATA.shifts = DATA.shifts.filter(s=>s.id !== id);
+      expandedShiftIds.delete(id);
+      saveData();
+      renderShiftHistory();
+      showToast("Shift deleted");
+    }
+    return;
+  }
+});
+
+function renderShiftTracker(){
+  renderShiftFormArea();
+  renderShiftHistory();
+}
+
+function exportShiftsData(){
+  const payload = { shifts: DATA.shifts };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `adp-shifts-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Shift data exported");
+}
+
+function importShiftsData(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.shifts){
+        throw new Error("File does not contain shift data");
+      }
+      DATA.shifts = parsed.shifts;
+      expandedShiftIds = new Set();
+      saveData();
+      renderShiftTracker();
+      showToast("Shift data imported");
+    }catch(err){
+      console.error(err);
+      showToast("Import failed — not a valid shifts backup");
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportShiftsBtn").addEventListener("click", exportShiftsData);
+document.getElementById("importShiftsBtn").addEventListener("click", ()=>{
+  document.getElementById("importShiftsFile").click();
+});
+document.getElementById("importShiftsFile").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(file) importShiftsData(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   To-Do List tab
+   ============================================================ */
+let todoFormOpen = false;
+let editingTodoId = null;
+let showCompletedTodos = false;
+
+function genTodoId(){
+  return "t_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+function getAllCategories(){
+  const set = new Set(DATA.todoCategories || []);
+  (DATA.todos || []).forEach(t=>{ if(t.category) set.add(t.category); });
+  return Array.from(set).sort();
+}
+
+const PRIORITY_WEIGHT = {High:3, Medium:2, Low:1};
+
+function buildTodoFormHtml(){
+  const todo = editingTodoId ? DATA.todos.find(t=>t.id === editingTodoId) : null;
+  const text = todo ? todo.text : "";
+  const category = todo ? todo.category : "";
+  const dueDate = todo ? todo.dueDate : "";
+  const priority = todo ? todo.priority : "Medium";
+
+  const categoryOptions = getAllCategories().map(c=>`<option value="${escapeHtml(c)}">`).join("");
+
+  return `
+    <div class="shift-form-card" id="todoFormCard">
+      <h3>${editingTodoId ? "Edit To-Do" : "Add To-Do"}</h3>
+
+      <div class="field-row">
+        <label class="field-label">Task</label>
+        <input type="text" class="field-input" id="todoTextInput" value="${escapeHtml(text)}" placeholder="What needs to get done?">
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Category</label>
+        <input type="text" class="field-input" id="todoCategoryInput" list="todoCategoryList" value="${escapeHtml(category)}" placeholder="e.g. Vendor, Equipment...">
+        <datalist id="todoCategoryList">${categoryOptions}</datalist>
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Due Date (optional)</label>
+        <input type="date" class="field-input" id="todoDueDateInput" value="${dueDate || ""}">
+      </div>
+
+      <div class="field-row">
+        <label class="field-label">Priority</label>
+        <div class="role-toggle" id="todoPriorityToggle">
+          <button data-value="Low" class="${priority==="Low"?"active":""}">Low</button>
+          <button data-value="Medium" class="${priority==="Medium"?"active":""}">Medium</button>
+          <button data-value="High" class="${priority==="High"?"active":""}">High</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="cancelTodoBtn">Cancel</button>
+        <button class="btn primary" id="saveTodoBtn">${editingTodoId ? "Save Changes" : "Add To-Do"}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTodoFormArea(){
+  const area = document.getElementById("todoFormArea");
+  if(!todoFormOpen){
+    area.innerHTML = `<button class="add-item-btn" id="addTodoBtn">+ Add To-Do</button>`;
+    document.getElementById("addTodoBtn").addEventListener("click", ()=>{
+      editingTodoId = null;
+      todoFormOpen = true;
+      renderTodoFormArea();
+      scrollToTodoForm();
+    });
+    return;
+  }
+
+  area.innerHTML = buildTodoFormHtml();
+
+  document.getElementById("todoPriorityToggle").addEventListener("click",(e)=>{
+    const btn = e.target.closest("button[data-value]");
+    if(!btn) return;
+    document.querySelectorAll("#todoPriorityToggle button").forEach(b=>b.classList.toggle("active", b===btn));
+  });
+
+  document.getElementById("cancelTodoBtn").addEventListener("click", closeTodoForm);
+  document.getElementById("saveTodoBtn").addEventListener("click", saveTodoFromForm);
+}
+
+function scrollToTodoForm(){
+  setTimeout(()=>{
+    const el = document.getElementById("todoFormCard");
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  }, 30);
+}
+
+function closeTodoForm(){
+  todoFormOpen = false;
+  editingTodoId = null;
+  renderTodoFormArea();
+}
+
+function saveTodoFromForm(){
+  const text = document.getElementById("todoTextInput").value.trim();
+  if(!text){
+    showToast("Please enter a task");
+    return;
+  }
+  const category = document.getElementById("todoCategoryInput").value.trim() || "General";
+  const dueDate = document.getElementById("todoDueDateInput").value;
+  const priorityBtn = document.querySelector("#todoPriorityToggle button.active");
+  const priority = priorityBtn ? priorityBtn.dataset.value : "Medium";
+
+  if(!(DATA.todoCategories || []).includes(category)){
+    DATA.todoCategories = DATA.todoCategories || [];
+    DATA.todoCategories.push(category);
+  }
+
+  if(editingTodoId){
+    const todo = DATA.todos.find(t=>t.id === editingTodoId);
+    if(todo){
+      todo.text = text; todo.category = category; todo.dueDate = dueDate; todo.priority = priority;
+    }
+    showToast("To-do updated");
+  } else {
+    DATA.todos.push({
+      id: genTodoId(), text, category, dueDate, priority, done:false
+    });
+    showToast("To-do added");
+  }
+
+  saveData();
+  closeTodoForm();
+  renderTodoLists();
+}
+
+function todoRowHtml(t){
+  const todayStr = formatISO(new Date());
+  const overdue = t.dueDate && !t.done && t.dueDate < todayStr;
+  const dueLabel = t.dueDate ? formatShortDate(t.dueDate) : "";
+
+  return `
+    <div class="todo-row-full ${t.done ? "done":""}" data-id="${t.id}">
+      <input type="checkbox" class="todo-check" data-action="toggle-done" ${t.done ? "checked":""}>
+      <div class="todo-main">
+        <div class="todo-text-full">${escapeHtml(t.text)}</div>
+        <div class="todo-meta">
+          <span class="badge-metric badge-priority-${t.priority.toLowerCase()}">${t.priority}</span>
+          <span class="badge-site">${escapeHtml(t.category)}</span>
+          ${dueLabel ? `<span class="badge-due ${overdue ? "overdue":""}">${overdue ? "Overdue: " : ""}${dueLabel}</span>` : ""}
+        </div>
+      </div>
+      <div class="todo-actions">
+        <button class="icon-sm" data-action="edit-todo" title="Edit">✎</button>
+        <button class="icon-sm danger" data-action="delete-todo" title="Delete">🗑</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTodoLists(){
+  const openListEl = document.getElementById("todoOpenList");
+  const completedListEl = document.getElementById("todoCompletedList");
+  const toggleBtn = document.getElementById("toggleCompletedBtn");
+
+  const all = DATA.todos || [];
+  const open = all.filter(t=>!t.done).sort((a,b)=>{
+    const pw = (PRIORITY_WEIGHT[b.priority]||0) - (PRIORITY_WEIGHT[a.priority]||0);
+    if(pw !== 0) return pw;
+    if(!a.dueDate) return 1;
+    if(!b.dueDate) return -1;
+    return a.dueDate.localeCompare(b.dueDate);
+  });
+  const completed = all.filter(t=>t.done).sort((a,b)=> (b.dueDate||"").localeCompare(a.dueDate||""));
+
+  openListEl.innerHTML = open.length === 0
+    ? `<div class="empty-state"><div class="big">✅</div><div class="msg">Nothing open</div><div class="sub">Tap "+ Add To-Do" above to add one.</div></div>`
+    : open.map(todoRowHtml).join("");
+
+  toggleBtn.textContent = `${showCompletedTodos ? "Hide" : "Show"} Completed (${completed.length})`;
+  completedListEl.style.display = showCompletedTodos ? "block" : "none";
+  completedListEl.innerHTML = completed.length === 0
+    ? `<div class="empty-state" style="padding:16px 4px;"><div class="sub">No completed to-dos yet.</div></div>`
+    : completed.map(todoRowHtml).join("");
+}
+
+document.getElementById("toggleCompletedBtn").addEventListener("click", ()=>{
+  showCompletedTodos = !showCompletedTodos;
+  renderTodoLists();
+});
+
+async function handleTodoListClick(e){
+  const row = e.target.closest(".todo-row-full");
+  if(!row) return;
+  const id = row.dataset.id;
+  const todo = DATA.todos.find(t=>t.id === id);
+  if(!todo) return;
+
+  if(e.target.closest('[data-action="toggle-done"]')){
+    todo.done = !todo.done;
+    saveData();
+    renderTodoLists();
+    renderTodoPreview(); // keep Home preview in sync if user returns to it
+    return;
+  }
+
+  if(e.target.closest('[data-action="edit-todo"]')){
+    editingTodoId = id;
+    todoFormOpen = true;
+    renderTodoFormArea();
+    scrollToTodoForm();
+    return;
+  }
+
+  if(e.target.closest('[data-action="delete-todo"]')){
+    const ok = await showConfirmModal({title:"Delete to-do?", message:`Delete "${todo.text}"?`, confirmText:"Delete"});
+    if(ok){
+      DATA.todos = DATA.todos.filter(t=>t.id !== id);
+      saveData();
+      renderTodoLists();
+      renderTodoPreview();
+      showToast("To-do deleted");
+    }
+    return;
+  }
+}
+
+document.getElementById("todoOpenList").addEventListener("click", handleTodoListClick);
+document.getElementById("todoCompletedList").addEventListener("click", handleTodoListClick);
+
+function renderTodosTab(){
+  renderTodoFormArea();
+  renderTodoLists();
+}
+
+function exportTodosData(){
+  const payload = { todos: DATA.todos, todoCategories: DATA.todoCategories };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `adp-todos-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("To-Do data exported");
+}
+
+function importTodosData(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.todos){
+        throw new Error("File does not contain to-do data");
+      }
+      DATA.todos = parsed.todos;
+      DATA.todoCategories = parsed.todoCategories || DATA.todoCategories || ["Vendor","Equipment","Roadmap","Training"];
+      saveData();
+      renderTodosTab();
+      renderTodoPreview();
+      showToast("To-Do data imported");
+    }catch(err){
+      console.error(err);
+      showToast("Import failed — not a valid to-do backup");
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("exportTodosBtn").addEventListener("click", exportTodosData);
+document.getElementById("importTodosBtn").addEventListener("click", ()=>{
+  document.getElementById("importTodosFile").click();
+});
+document.getElementById("importTodosFile").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(file) importTodosData(file);
+  e.target.value = "";
+});
+
+/* ============================================================
+   Site Comparison tab
+   ============================================================ */
+
+function getTrailingAveragesForSite(site){
+  const siteShifts = DATA.shifts.filter(s=>s.site === site).slice().sort((a,b)=> b.date.localeCompare(a.date));
+  const last4 = siteShifts.slice(0,4);
+  const cutoff30 = (()=>{ const d = new Date(); d.setDate(d.getDate()-30); return formatISO(d); })();
+  const last30 = siteShifts.filter(s=> s.date >= cutoff30);
+  return {
+    last4: aggregateShiftMetrics(last4), last4Count: last4.length,
+    last30: aggregateShiftMetrics(last30), last30Count: last30.length
+  };
+}
+
+function metricValClass(type, val){
+  if(val === null) return "";
+  if(type === "waste") return val <= 27 ? "ok" : "warn";
+  if(type === "margin") return val >= 0 ? "ok" : "warn";
+  return "";
+}
+
+function compareColHtml(siteLabel, metrics, count){
+  return `
+    <div class="compare-col">
+      <h4>${siteLabel}</h4>
+      <div class="compare-metric-row">
+        <span>Capture Rate</span>
+        <span class="val">${metrics.captureRatePct === null ? "—" : metrics.captureRatePct.toFixed(0)+"%"}</span>
+      </div>
+      <div class="compare-metric-row">
+        <span>Waste %</span>
+        <span class="val ${metricValClass("waste", metrics.wastePct)}">${metrics.wastePct === null ? "—" : metrics.wastePct.toFixed(0)+"%"}</span>
+      </div>
+      <div class="compare-metric-row">
+        <span>Margin</span>
+        <span class="val ${metricValClass("margin", metrics.marginPct)}">${metrics.marginPct === null ? "—" : metrics.marginPct.toFixed(0)+"%"}</span>
+      </div>
+      <div class="compare-count">${count} shift${count===1?"":"s"}</div>
+    </div>
+  `;
+}
+
+function getSiteMetricSeries(site){
+  const shifts = DATA.shifts.filter(s=>s.site === site).slice().sort((a,b)=> a.date.localeCompare(b.date));
+  const capture = [], waste = [], margin = [];
+  shifts.forEach(s=>{
+    const m = computeShiftMetrics(s.site, s.headcount, s.transactions, s.items || {});
+    if(m.captureRatePct !== null) capture.push(m.captureRatePct);
+    if(m.wastePct !== null) waste.push(m.wastePct);
+    if(m.marginPct !== null) margin.push(m.marginPct);
+  });
+  return {capture, waste, margin};
+}
+
+// Lightweight self-contained SVG line chart, no external libraries.
+// Plots each site's series against its own chronological shift index (dates don't align across sites).
+// seriesList: [{name, color, data:[...values]}, ...]
+function buildTrendChartSVG(seriesList, opts){
+  opts = opts || {};
+  const allVals = seriesList.flatMap(s=>s.data);
+  if(allVals.length === 0){
+    return `<div class="empty-state" style="padding:20px 4px;"><div class="sub">Not enough shift data yet.</div></div>`;
+  }
+
+  const w = 320, h = 130, padL = 30, padR = 10, padT = 12, padB = 20;
+  let minV = Math.min(...allVals);
+  let maxV = Math.max(...allVals);
+  if(opts.thresholdValue !== undefined){
+    minV = Math.min(minV, opts.thresholdValue);
+    maxV = Math.max(maxV, opts.thresholdValue);
+  }
+  if(minV === maxV){ minV -= 5; maxV += 5; }
+  const range = maxV - minV;
+  minV -= range * 0.12; maxV += range * 0.12;
+
+  const maxCount = Math.max(...seriesList.map(s=>s.data.length), 2);
+  const xScale = (i)=> padL + (i/(maxCount-1)) * (w - padL - padR);
+  const yScale = (v)=> h - padB - ((v - minV)/(maxV - minV)) * (h - padT - padB);
+
+  function seriesMarkup(series, color){
+    if(series.length === 0) return "";
+    const pts = series.map((v,i)=> `${xScale(i).toFixed(1)},${yScale(v).toFixed(1)}`).join(" ");
+    const dots = series.map((v,i)=> `<circle cx="${xScale(i).toFixed(1)}" cy="${yScale(v).toFixed(1)}" r="2.5" fill="${color}"/>`).join("");
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>${dots}`;
+  }
+
+  const thresholdLine = opts.thresholdValue !== undefined
+    ? `<line x1="${padL}" x2="${w-padR}" y1="${yScale(opts.thresholdValue).toFixed(1)}" y2="${yScale(opts.thresholdValue).toFixed(1)}" stroke="var(--amber)" stroke-width="1" stroke-dasharray="4,3"/>`
+    : "";
+
+  const unit = opts.unit || "%";
+
+  const legendHtml = seriesList.map(s=>
+    `<span class="legend-item"><span class="legend-dot" style="background:${s.color};"></span>${escapeHtml(s.name)}</span>`
+  ).join("");
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" class="trend-svg">
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${h-padB}" stroke="var(--line)" stroke-width="1"/>
+      <line x1="${padL}" y1="${h-padB}" x2="${w-padR}" y2="${h-padB}" stroke="var(--line)" stroke-width="1"/>
+      <text x="2" y="${padT+6}" font-size="8" fill="#7A756C">${maxV.toFixed(0)}${unit}</text>
+      <text x="2" y="${h-padB+2}" font-size="8" fill="#7A756C">${minV.toFixed(0)}${unit}</text>
+      ${thresholdLine}
+      ${seriesList.map(s=>seriesMarkup(s.data, s.color)).join("")}
+    </svg>
+    <div class="trend-legend">
+      ${legendHtml}
+      ${opts.thresholdValue !== undefined ? `<span style="color:var(--amber);">- - - ${opts.thresholdValue}${unit} threshold</span>` : ""}
+    </div>
+  `;
+}
+
+function renderSiteComparisonTab(){
+  const sites = getVendorEntries();
+
+  const cols4 = sites.map(v=>{
+    const avg = getTrailingAveragesForSite(v.key);
+    return compareColHtml(v.name, avg.last4, avg.last4Count);
+  }).join("");
+  document.getElementById("compareL4Grid").innerHTML = cols4;
+
+  const cols30 = sites.map(v=>{
+    const avg = getTrailingAveragesForSite(v.key);
+    return compareColHtml(v.name, avg.last30, avg.last30Count);
+  }).join("");
+  document.getElementById("compareL30Grid").innerHTML = cols30;
+
+  const seriesBySite = sites.map((v,i)=>({
+    name: v.name,
+    color: getSiteColor(i),
+    series: getSiteMetricSeries(v.key)
+  }));
+
+  document.getElementById("compareTrendCharts").innerHTML = `
+    <div class="chart-card">
+      <h4>Capture Rate Over Time</h4>
+      ${buildTrendChartSVG(seriesBySite.map(s=>({name:s.name, color:s.color, data:s.series.capture})), {unit:"%"})}
+    </div>
+    <div class="chart-card">
+      <h4>Waste % Over Time</h4>
+      ${buildTrendChartSVG(seriesBySite.map(s=>({name:s.name, color:s.color, data:s.series.waste})), {unit:"%", thresholdValue:27})}
+    </div>
+    <div class="chart-card">
+      <h4>Margin % Over Time</h4>
+      ${buildTrendChartSVG(seriesBySite.map(s=>({name:s.name, color:s.color, data:s.series.margin})), {unit:"%", thresholdValue:0})}
+    </div>
+  `;
+}
+
+/* ============================================================
+   Export / Summary tab
+   ============================================================ */
+let summaryRangeStart = null;
+let summaryRangeEnd = null;
+
+function getPresetRange(key){
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(key === "thisWeek"){
+    const {start, end} = getWeekRange();
+    return {start: formatISO(start), end: formatISO(end)};
+  }
+  if(key === "lastWeek"){
+    const {start} = getWeekRange();
+    const lastStart = new Date(start); lastStart.setDate(lastStart.getDate() - 7);
+    const lastEnd = new Date(lastStart); lastEnd.setDate(lastEnd.getDate() + 6);
+    return {start: formatISO(lastStart), end: formatISO(lastEnd)};
+  }
+  if(key === "thisMonth"){
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    return {start: formatISO(first), end: formatISO(today)};
+  }
+  if(key === "last30"){
+    const d = new Date(today); d.setDate(d.getDate() - 29);
+    return {start: formatISO(d), end: formatISO(today)};
+  }
+  return {start: formatISO(today), end: formatISO(today)};
+}
+
+function pctStr(v){ return v === null ? "—" : v.toFixed(0) + "%"; }
+
+function formatRangeLabel(startStr, endStr){
+  const s = new Date(startStr + "T00:00:00");
+  const e = new Date(endStr + "T00:00:00");
+  if(startStr === endStr){
+    return s.toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"});
+  }
+  const startLabel = s.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  const endLabel = e.toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"});
+  return `${startLabel} – ${endLabel}`;
+}
+
+function generateSummaryText(startStr, endStr){
+  if(!startStr || !endStr) return "Pick a start and end date to generate a summary.";
+  const shifts = DATA.shifts.filter(s=> s.date >= startStr && s.date <= endStr);
+  const rangeLabel = formatRangeLabel(startStr, endStr);
+
+  const lines = [];
+  lines.push(`ADP Summary: ${rangeLabel}`);
+  lines.push("");
+
+  if(shifts.length === 0){
+    lines.push("No shifts logged in this date range.");
+    return lines.join("\n");
+  }
+
+  const overall = aggregateShiftMetrics(shifts);
+  const sites = getVendorEntries();
+  const bySite = sites.map(v=>{
+    const siteShifts = shifts.filter(s=>s.site === v.key);
+    return { name: v.name, shifts: siteShifts, metrics: aggregateShiftMetrics(siteShifts) };
+  }).filter(s=> s.shifts.length > 0);
+
+  lines.push(`Overall: ${pctStr(overall.captureRatePct)} capture rate · ${pctStr(overall.wastePct)} waste · ${pctStr(overall.marginPct)} margin`);
+  const siteCountLabel = bySite.map(s=> `${s.shifts.length} ${s.name}`).join(", ");
+  lines.push(`Shifts logged: ${shifts.length}${siteCountLabel ? ` (${siteCountLabel})` : ""} · Profit: $${overall.profit.toFixed(2)}`);
+
+  if(bySite.length){
+    lines.push("");
+    bySite.forEach(s=>{
+      lines.push(`${s.name}: ${pctStr(s.metrics.captureRatePct)} capture · ${pctStr(s.metrics.wastePct)} waste · ${pctStr(s.metrics.marginPct)} margin (${s.shifts.length} shift${s.shifts.length===1?"":"s"})`);
+    });
+  }
+
+  const notedShifts = shifts.filter(s=> s.notes && s.notes.trim()).slice().sort((a,b)=> a.date.localeCompare(b.date));
+  if(notedShifts.length){
+    lines.push("");
+    lines.push("Notes & Anomalies:");
+    notedShifts.forEach(s=>{
+      lines.push(`- ${formatShortDate(s.date)} (${getVendorName(s.site)}): ${s.notes.trim()}`);
+    });
+  }
+
+  return lines.join("\n");
+}
+
+function updateSummaryOutput(){
+  document.getElementById("summaryOutput").value = generateSummaryText(summaryRangeStart, summaryRangeEnd);
+}
+
+function renderSummaryTab(){
+  if(!summaryRangeStart || !summaryRangeEnd){
+    const r = getPresetRange("thisWeek");
+    summaryRangeStart = r.start;
+    summaryRangeEnd = r.end;
+  }
+  document.getElementById("summaryStartDate").value = summaryRangeStart;
+  document.getElementById("summaryEndDate").value = summaryRangeEnd;
+  updateSummaryOutput();
+}
+
+document.getElementById("summaryStartDate").addEventListener("change",(e)=>{
+  summaryRangeStart = e.target.value;
+  updateSummaryOutput();
+});
+document.getElementById("summaryEndDate").addEventListener("change",(e)=>{
+  summaryRangeEnd = e.target.value;
+  updateSummaryOutput();
+});
+document.getElementById("summaryPresetRow").addEventListener("click",(e)=>{
+  const btn = e.target.closest("button[data-preset]");
+  if(!btn) return;
+  const r = getPresetRange(btn.dataset.preset);
+  summaryRangeStart = r.start;
+  summaryRangeEnd = r.end;
+  document.getElementById("summaryStartDate").value = summaryRangeStart;
+  document.getElementById("summaryEndDate").value = summaryRangeEnd;
+  updateSummaryOutput();
+});
+
+async function copySummaryToClipboard(){
+  const text = document.getElementById("summaryOutput").value;
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast("Summary copied to clipboard");
+  }catch(err){
+    try{
+      const ta = document.getElementById("summaryOutput");
+      ta.select();
+      document.execCommand("copy");
+      showToast("Summary copied to clipboard");
+    }catch(err2){
+      showToast("Copy failed — tap the text box and copy manually");
+    }
+  }
+}
+
+function downloadSummaryTxt(){
+  const text = document.getElementById("summaryOutput").value;
+  const blob = new Blob([text], {type:"text/plain"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `adp-summary-${summaryRangeStart}_to_${summaryRangeEnd}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Summary downloaded");
+}
+
+document.getElementById("copySummaryBtn").addEventListener("click", copySummaryToClipboard);
+document.getElementById("downloadSummaryBtn").addEventListener("click", downloadSummaryTxt);
+
+/* ============================================================
+   Init
+   ============================================================ */
+function renderAllTabs(){
+  renderHome();
+  renderMenuTab();
+  renderPaydaysTab();
+  renderMembersTab();
+  renderVendorsTab();
+  renderShiftTracker();
+  renderTodosTab();
+  renderSiteComparisonTab();
+  renderSummaryTab();
+}
+renderAllTabs();
+
+/* ============================================================
+   Cloud sync init
+   The Firebase bridge (module script above) loads independently
+   and dispatches "adp-cloud-ready" once window.__adpCloud exists.
+   On first ready: pull the cloud copy and use it if it's newer
+   than what's cached locally, then stay subscribed for live
+   updates from other devices for the rest of the session.
+   ============================================================ */
+function initCloudSync(){
+  window.__adpCloud.load().then(cloudData=>{
+    if(cloudData){
+      const cloudStamp = cloudData.meta && cloudData.meta.lastUpdated;
+      const localStamp = DATA.meta && DATA.meta.lastUpdated;
+      if(!localStamp || (cloudStamp && cloudStamp > localStamp)){
+        DATA = mergeWithDefaults(cloudData);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+        renderAllTabs();
+      }
+    }else{
+      // Nothing in the cloud yet — this device's copy becomes the
+      // starting point for every other device.
+      window.__adpCloud.save(DATA);
+    }
+    window.__adpCloud.subscribe(newData=>{
+      DATA = mergeWithDefaults(newData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+      renderAllTabs();
+    });
+  });
+}
+if(window.__adpCloud){
+  initCloudSync();
+}else{
+  window.addEventListener("adp-cloud-ready", initCloudSync, {once:true});
+}
+</script>
+
+</body>
+</html>
