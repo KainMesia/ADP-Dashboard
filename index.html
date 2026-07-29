@@ -492,6 +492,34 @@
 
 
 <style>
+  /* Auth overlay */
+  .auth-overlay{
+    position:fixed; inset:0; z-index:500;
+    background:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .auth-overlay.hidden{ display:none; }
+  .auth-box{
+    background:var(--card); border-radius:16px; padding:28px 24px;
+    width:100%; max-width:340px;
+  }
+  .auth-brand{ font-size:19px; font-weight:800; color:var(--ink); margin-bottom:2px; }
+  .auth-sub{ font-size:13px; color:var(--muted); margin:0 0 18px 0; }
+  .auth-box input{
+    width:100%; border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; font-size:15px; color:var(--ink); background:var(--paper);
+    margin-bottom:10px;
+  }
+  .auth-box input:focus{ outline:2px solid var(--red); outline-offset:1px; }
+  .auth-error{
+    font-size:12.5px; color:var(--amber); margin:0 0 10px 0; display:none;
+  }
+  .auth-error.show{ display:block; }
+  body.locked main, body.locked nav.tab-bar{ display:none; }
+</style>
+
+<style>
   /* Export / Summary */
   .preset-row{
     display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;
@@ -504,7 +532,18 @@
   }
 </style>
 </head>
-<body>
+<body class="locked">
+
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-brand">ADP Manager Dashboard</div>
+    <p class="auth-sub">Sign in to continue</p>
+    <input type="email" id="authEmail" placeholder="Email" autocomplete="username">
+    <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+    <p class="auth-error" id="authError"></p>
+    <button class="btn primary" id="authSubmitBtn">Sign In</button>
+  </div>
+</div>
 
 <header class="app-header">
   <div class="brand">
@@ -514,6 +553,7 @@
   <div class="header-right">
     <span class="sync-badge" id="syncStatus">Connecting…</span>
     <button class="icon-btn" id="headerBackupBtn">⇅ Backup</button>
+    <button class="icon-btn" id="logoutBtn" title="Sign out">⎋</button>
   </div>
 </header>
 
@@ -791,6 +831,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/fireba
 import {
   getFirestore, doc, getDoc, setDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsPOrbQDwDZIn8ddXgtyAfWhVLf7-yxa0",
@@ -803,9 +846,68 @@ const firebaseConfig = {
 
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
 // Everything lives in one document — simplest possible shape for a
 // single shared dataset synced across devices.
 const dashboardDocRef = doc(db, "adpDashboard", "main");
+
+/* ------------------------------------------------------------
+   Login gate — single-user Firebase Auth. The whole dashboard
+   sits behind this; nothing renders/syncs until signed in.
+   ------------------------------------------------------------ */
+const authOverlay = document.getElementById("authOverlay");
+const authEmail = document.getElementById("authEmail");
+const authPassword = document.getElementById("authPassword");
+const authError = document.getElementById("authError");
+const authSubmitBtn = document.getElementById("authSubmitBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+function showAuthError(msg){
+  authError.textContent = msg;
+  authError.classList.add("show");
+}
+function clearAuthError(){
+  authError.textContent = "";
+  authError.classList.remove("show");
+}
+
+async function attemptSignIn(){
+  clearAuthError();
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+  if(!email || !password){
+    showAuthError("Enter your email and password.");
+    return;
+  }
+  authSubmitBtn.disabled = true;
+  authSubmitBtn.textContent = "Signing in…";
+  try{
+    await signInWithEmailAndPassword(auth, email, password);
+    authPassword.value = "";
+  }catch(e){
+    console.error("Sign-in failed:", e);
+    showAuthError("Wrong email or password.");
+  }finally{
+    authSubmitBtn.disabled = false;
+    authSubmitBtn.textContent = "Sign In";
+  }
+}
+
+authSubmitBtn.addEventListener("click", attemptSignIn);
+authPassword.addEventListener("keydown", (e)=>{ if(e.key === "Enter") attemptSignIn(); });
+logoutBtn.addEventListener("click", ()=> signOut(auth));
+
+onAuthStateChanged(auth, (user)=>{
+  if(user){
+    authOverlay.classList.add("hidden");
+    document.body.classList.remove("locked");
+    window.dispatchEvent(new Event("adp-authed"));
+  }else{
+    authOverlay.classList.remove("hidden");
+    document.body.classList.add("locked");
+    window.dispatchEvent(new Event("adp-signed-out"));
+  }
+});
 
 let pendingSaveTimer = null;
 let lastKnownWriteStamp = null;
@@ -3416,11 +3518,19 @@ function initCloudSync(){
     });
   });
 }
-if(window.__adpCloud){
-  initCloudSync();
-}else{
-  window.addEventListener("adp-cloud-ready", initCloudSync, {once:true});
+let __adpCloudReady = !!window.__adpCloud;
+let __adpAuthed = false;
+let __adpSyncStarted = false;
+function __adpMaybeStartSync(){
+  if(__adpCloudReady && __adpAuthed && !__adpSyncStarted){
+    __adpSyncStarted = true;
+    initCloudSync();
+  }
 }
+window.addEventListener("adp-cloud-ready", ()=>{ __adpCloudReady = true; __adpMaybeStartSync(); }, {once:true});
+window.addEventListener("adp-authed", ()=>{ __adpAuthed = true; __adpMaybeStartSync(); });
+window.addEventListener("adp-signed-out", ()=>{ __adpAuthed = false; });
+__adpMaybeStartSync();
 </script>
 
 </body>
