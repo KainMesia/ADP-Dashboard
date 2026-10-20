@@ -531,6 +531,30 @@
     background:var(--paper);
   }
 </style>
+<style>
+/* v2 additions */
+.item-grid-header, .item-grid-row{ grid-template-columns:1fr 50px 50px 50px !important; }
+.item-grid-header span:nth-child(4){ text-align:center; }
+.stat-grid.four{ grid-template-columns:repeat(2,1fr); }
+.stat-card.ok .val, .stat-card.warn .val, .compare-metric-row .val.ok, .compare-metric-row .val.warn{ color:var(--ink) !important; }
+.badge-metric.ok, .badge-metric.warn{ background:var(--paper) !important; color:var(--muted) !important; border-color:var(--line) !important; }
+.chips{ display:flex; flex-wrap:wrap; gap:6px; }
+.chip{ border:1px solid var(--line); background:var(--paper); color:var(--muted); border-radius:20px; padding:7px 12px; font-size:12.5px; font-weight:700; }
+.chip.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-h{ font-size:10px; font-weight:700; color:var(--muted); text-align:center; text-transform:uppercase; }
+.cal-cell{ background:var(--card); border:1px solid var(--line); border-radius:8px; min-height:56px; padding:4px; cursor:pointer; font-size:11px; overflow:hidden; }
+.cal-cell.tall{ min-height:90px; }
+.cal-cell.dim{ opacity:.45; }
+.cal-cell.today{ border-color:var(--red); }
+.cal-cell.sel{ background:#FDF3E3; border-color:#E8A33D; }
+.cal-n{ font-weight:700; font-size:11px; }
+.cal-dots{ display:flex; flex-wrap:wrap; gap:3px; margin-top:4px; align-items:center; }
+.cal-dots i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+.cal-dots i.sq{ border-radius:2px; background:var(--muted); }
+.cal-dots b{ font-size:9px; color:var(--green); }
+.cal-line{ font-size:10px; padding:1px 4px; margin-top:3px; background:var(--paper); border-radius:3px; }
+</style>
 </head>
 <body class="locked">
 
@@ -618,7 +642,7 @@
   <!-- MENU & PRICING -->
   <section class="tab-panel" id="tab-menu">
     <h1 class="page-title">Menu &amp; Pricing</h1>
-    <p class="page-sub">Cost &amp; price per item, per site. Feeds margin calcs in Shift Tracker.</p>
+    <p class="page-sub">Price per item, per site. Feeds sales totals in Shift Tracker.</p>
 
     <div class="segmented" id="menuSiteToggle"></div>
 
@@ -744,16 +768,8 @@
   <!-- SITE COMPARISON -->
   <section class="tab-panel" id="tab-comparison">
     <h1 class="page-title">Site Comparison</h1>
-    <p class="page-sub">All vendor sites, side by side.</p>
-
-    <div class="section-label">Last 4 Shifts</div>
-    <div class="compare-grid" id="compareL4Grid"></div>
-
-    <div class="section-label">Last 30 Days</div>
-    <div class="compare-grid" id="compareL30Grid"></div>
-
-    <div class="section-label">Trends Over Time</div>
-    <div id="compareTrendCharts"></div>
+    <p class="page-sub">Pick a timeframe, locations, and days. The PDF uses these same choices.</p>
+    <div id="reportCompare"></div>
   </section>
 
   <!-- SUMMARY GENERATOR -->
@@ -788,18 +804,33 @@
         <button class="btn" id="downloadSummaryBtn">⬇ Download .txt</button>
       </div>
     </div>
+  
+    <div class="section-label">PDF Report</div>
+    <div id="reportSummary"></div>
   </section>
 
+  <section class="tab-panel" id="tab-calendar">
+    <h1 class="page-title">Calendar</h1>
+    <p class="page-sub">Tap a date to see its shifts and notes.</p>
+    <div id="calendarArea"></div>
+  </section>
+  <section class="tab-panel" id="tab-journal">
+    <h1 class="page-title">Journal</h1>
+    <p class="page-sub">Temporary info from vendors, reminders, anything worth jotting down.</p>
+    <div id="journalArea"></div>
+  </section>
 </main>
 
 <nav class="tab-bar" id="tabBar">
   <button data-tab="home" class="active"><span class="ic">🏠</span>Home</button>
   <button data-tab="shifts"><span class="ic">📋</span>Shifts</button>
+  <button data-tab="calendar"><span class="ic">🗓️</span>Calendar</button>
   <button data-tab="menu"><span class="ic">🧾</span>Menu</button>
   <button data-tab="paydays"><span class="ic">📅</span>Paydays</button>
   <button data-tab="vendors"><span class="ic">🏭</span>Vendors</button>
   <button data-tab="members"><span class="ic">👥</span>Members</button>
   <button data-tab="todos"><span class="ic">✅</span>To-Dos</button>
+  <button data-tab="journal"><span class="ic">📓</span>Journal</button>
   <button data-tab="comparison"><span class="ic">⚖️</span>Compare</button>
   <button data-tab="summary"><span class="ic">📝</span>Summary</button>
 </nav>
@@ -945,7 +976,7 @@ window.__adpCloud = {
     }, 600);
   },
   subscribe(onRemoteChange){
-    onSnapshot(dashboardDocRef, (snap)=>{
+    return onSnapshot(dashboardDocRef, (snap)=>{
       if(!snap.exists()) return;
       const data = snap.data();
       const stamp = data && data.meta ? data.meta.lastUpdated : null;
@@ -2302,7 +2333,7 @@ document.getElementById("addVendorBtn").addEventListener("click", async ()=>{
   DATA.vendors.extra = DATA.vendors.extra || [];
   DATA.vendors.extra.push({
     id, name, contactName:"", contactPhone:"", contactEmail:"",
-    breakSchedule:"", equipment:"Fridge", accessNotes:"", notes:""
+    breakSchedule:"", equipment:"Fridge", accessNotes:"", notes:"", locked:false
   });
   ensureSiteDataScaffold(id);
   saveData();
@@ -2572,7 +2603,7 @@ function buildShiftFormHtml(){
   ).join("");
 
   const m0 = computeShiftMetrics(currentFormSite, headcount, transactions, existingItems);
-  const wasteClass0 = m0.wastePct === null ? "" : (m0.wastePct <= 27 ? "ok" : "warn");
+  const wasteClass0 = "";
 
   return `
     <div class="shift-form-card" id="shiftFormCard">
@@ -2615,13 +2646,13 @@ function buildShiftFormHtml(){
       </div>
 
       <div class="section-label" style="margin-top:18px;">Item-Level Brought / Leftover</div>
-      <div class="item-grid-header"><span>Item</span><span>Brought</span><span>Leftover</span></div>
+      <div class="item-grid-header"><span>Item</span><span>Brought</span><span>Leftover</span><span>Waste</span></div>
       <div id="itemGridBody">${buildItemGridRows(existingItems)}</div>
 
       <div class="form-summary">
         <div class="stat-card"><div class="val" id="formCaptureRateVal">${m0.captureRatePct===null?"—":m0.captureRatePct.toFixed(0)+"%"}</div><div class="lbl">Capture Rate</div></div>
         <div class="stat-card ${wasteClass0}" id="formWasteCard"><div class="val" id="formWasteVal">${m0.wastePct===null?"—":m0.wastePct.toFixed(0)+"%"}</div><div class="lbl">Waste %</div></div>
-        <div class="stat-card"><div class="val" id="formMarginVal">${m0.marginPct===null?"—":m0.marginPct.toFixed(0)+"%"}</div><div class="lbl">Margin</div></div>
+        <div class="stat-card"><div class="val" id="formMarginVal">${fm(m0.sales)}</div><div class="lbl">Sales</div></div>
       </div>
 
       <div class="field-row">
@@ -3282,6 +3313,7 @@ function buildTrendChartSVG(seriesList, opts){
 }
 
 function renderSiteComparisonTab(){
+  if(!document.getElementById("compareL4Grid")) return;
   const sites = getVendorEntries();
 
   const cols4 = sites.map(v=>{
@@ -3511,7 +3543,7 @@ function initCloudSync(){
       // starting point for every other device.
       window.__adpCloud.save(DATA);
     }
-    window.__adpCloud.subscribe(newData=>{
+    window.__adpUnsub = window.__adpCloud.subscribe(newData=>{
       DATA = mergeWithDefaults(newData);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
       renderAllTabs();
@@ -3529,9 +3561,421 @@ function __adpMaybeStartSync(){
 }
 window.addEventListener("adp-cloud-ready", ()=>{ __adpCloudReady = true; __adpMaybeStartSync(); }, {once:true});
 window.addEventListener("adp-authed", ()=>{ __adpAuthed = true; __adpMaybeStartSync(); });
-window.addEventListener("adp-signed-out", ()=>{ __adpAuthed = false; });
+window.addEventListener("adp-signed-out", ()=>{
+  __adpAuthed = false;
+  if(window.__adpUnsub){ try{ window.__adpUnsub(); }catch(e){} window.__adpUnsub = null; }
+  __adpSyncStarted = false;
+  // Clear this device's cached copy so a shared phone doesn't keep the data.
+  localStorage.removeItem(STORAGE_KEY);
+  DATA = defaultData(); DATA.meta.lastUpdated = "";
+  scaffoldAllVendorSites();
+  if(typeof renderAllTabs === "function") renderAllTabs();
+});
 __adpMaybeStartSync();
 </script>
 
+<script>
+/* ===== ADP v2 overrides (loaded after the main script) ===== */
+const fm=v=>v==null?"—":"$"+(+v).toFixed(2), pc=v=>v==null?"—":v.toFixed(0)+"%", esc=escapeHtml;
+const DN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function J(){ if(!Array.isArray(DATA.journal)) DATA.journal=[]; return DATA.journal; }
+function isTracked(id){ const it=DATA.menuItems.find(i=>i.id===id); const ns=it&&it.noShift!==undefined?it.noShift:id==="chips"; return !ns; }
+function siteColor(k){ return getSiteColor(getVendorEntries().findIndex(v=>v.key===k)); }
+
+/* ---------- core math: sales, waste, transactions ---------- */
+function shiftCalc(s){
+  const menu=DATA.menu[s.site]||{}; let br=0,wa=0,sales=0;
+  Object.keys(s.items||{}).forEach(id=>{
+    if(!isTracked(id)) return;
+    const e=s.items[id]||{}, b=+e.brought||0, l=+e.leftover||0, w=+e.waste||0, sold=Math.max(b-l-w,0);
+    const p=s.prices&&s.prices[id]!=null?+s.prices[id]:(+(menu[id]&&menu[id].price)||0);
+    br+=b; wa+=w; sales+=sold*p;
+  });
+  return {hc:+s.headcount||0, tx:+s.transactions||0, br, wa, sales, wt:s.wasteTracked===true};
+}
+function aggregateShiftMetrics(arr){
+  let hc=0,txc=0,tx=0,br=0,wa=0,sales=0;
+  arr.forEach(s=>{ const c=shiftCalc(s); tx+=c.tx; sales+=c.sales; if(c.hc>0){hc+=c.hc;txc+=c.tx;} if(c.wt){br+=c.br;wa+=c.wa;} });
+  const n=arr.length;
+  return {captureRatePct:hc>0?txc/hc*100:null, wastePct:br>0?wa/br*100:null, sales, revenue:sales, transactions:tx, shifts:n, avgTx:n?tx/n:null, avgSales:n?sales/n:null, wasteUnits:wa, broughtUnits:br};
+}
+function computeShiftMetrics(site,hc,tx,items,prices){
+  const c=shiftCalc({site,headcount:hc,transactions:tx,items,prices,wasteTracked:true});
+  return {captureRatePct:c.hc>0?c.tx/c.hc*100:null, wastePct:c.br>0?c.wa/c.br*100:null, sales:c.sales, revenue:c.sales};
+}
+
+/* ---------- shift form: Brought / Leftover / Waste ---------- */
+function buildItemGridRows(ex){
+  return DATA.menuItems.filter(i=>isTracked(i.id)).map(i=>{
+    const e=ex[i.id]||{};
+    return `<div class="item-grid-row" data-item-id="${i.id}"><span class="item-name">${esc(i.name)}</span>
+      <input type="number" min="0" step="1" inputmode="numeric" data-field="brought" value="${e.brought||""}" placeholder="0">
+      <input type="number" min="0" step="1" inputmode="numeric" data-field="leftover" value="${e.leftover||""}" placeholder="0">
+      <input type="number" min="0" step="1" inputmode="numeric" data-field="waste" value="${e.waste||""}" placeholder="0"></div>`;
+  }).join("");
+}
+function readItemsFromForm(){
+  const m={};
+  document.querySelectorAll("#shiftFormCard .item-grid-row").forEach(r=>{
+    const g=f=>parseFloat(r.querySelector(`[data-field="${f}"]`).value)||0;
+    m[r.dataset.itemId]={brought:g("brought"),leftover:g("leftover"),waste:g("waste")};
+  });
+  return m;
+}
+function updateShiftFormSummary(){
+  if(!document.getElementById("shiftFormCard")) return;
+  const hc=parseFloat(document.getElementById("shiftHeadcountInput").value)||0;
+  const tx=parseFloat(document.getElementById("shiftTransactionsInput").value)||0;
+  const m=computeShiftMetrics(currentFormSite,hc,tx,readItemsFromForm());
+  document.getElementById("formCaptureRateVal").textContent=pc(m.captureRatePct);
+  document.getElementById("formWasteVal").textContent=pc(m.wastePct);
+  document.getElementById("formMarginVal").textContent=fm(m.sales);
+  document.getElementById("formCycleTagVal").textContent=getCycleTagForDate(currentFormSite,document.getElementById("shiftDateInput").value);
+}
+function saveShiftFromForm(){
+  const date=document.getElementById("shiftDateInput").value;
+  if(!date){ showToast("Please enter a date"); return; }
+  const f={date, headcount:parseFloat(document.getElementById("shiftHeadcountInput").value)||0,
+    transactions:parseFloat(document.getElementById("shiftTransactionsInput").value)||0,
+    leaderId:document.getElementById("shiftLeaderSelect").value, notes:document.getElementById("shiftNotesInput").value};
+  const items=readItemsFromForm(), menu=DATA.menu[currentFormSite]||{}, prices={};
+  Object.keys(items).forEach(id=>{ prices[id]=+(menu[id]&&menu[id].price)||0; });
+  const sh=editingShiftId?DATA.shifts.find(s=>s.id===editingShiftId):null;
+  if(sh){
+    const same=sh.site===currentFormSite;
+    Object.assign(sh,f,{site:currentFormSite, wasteTracked:true, items:Object.assign({},sh.items||{},items), prices:same?Object.assign(prices,sh.prices||{}):prices});
+    showToast("Shift updated");
+  }else{
+    DATA.shifts.push(Object.assign({id:genShiftId(),site:currentFormSite,items,prices,wasteTracked:true},f));
+    showToast("Shift logged");
+  }
+  saveData(); closeShiftForm(); renderShiftHistory();
+}
+function renderShiftHistory(){
+  const list=document.getElementById("shiftHistoryList");
+  const shifts=DATA.shifts.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!shifts.length){ list.innerHTML=`<div class="card"><div class="empty-state"><div class="big">📋</div><div class="msg">No shifts logged yet</div><div class="sub">Tap "+ Log New Shift" above to add your first entry.</div></div></div>`; return; }
+  list.innerHTML=shifts.map(s=>{
+    const open=expandedShiftIds.has(s.id), c=shiftCalc(s);
+    const leader=s.leaderId&&DATA.members[s.leaderId]?DATA.members[s.leaderId].name:"Unassigned";
+    const dl=new Date(s.date+"T00:00:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+    const rows=DATA.menuItems.filter(i=>isTracked(i.id)).map(i=>{
+      const e=(s.items||{})[i.id]||{}, b=+e.brought||0, l=+e.leftover||0, w=+e.waste||0; if(!b&&!l&&!w) return "";
+      return `<div class="date-row"><span>${esc(i.name)}</span><span style="color:var(--muted);font-size:12.5px;">brought ${b} · sold ${Math.max(b-l-w,0)} · waste ${w}${l?` · left ${l}`:""}</span></div>`;
+    }).join("");
+    return `<div class="member-card" data-id="${s.id}"><div class="member-header" data-action="toggle-shift"><div class="member-header-left">
+      <span class="member-name-display">${esc(getVendorName(s.site))} — ${dl}</span><div class="member-badges">
+      <span class="badge-metric">${fm(c.sales)} sales</span><span class="badge-metric">${c.tx} tx</span>
+      <span class="badge-metric">${c.wt&&c.br>0?pc(c.wa/c.br*100)+" waste":"waste —"}</span>
+      ${c.hc>0?`<span class="badge-metric">${pc(c.tx/c.hc*100)} capture</span>`:""}</div></div><span class="chevron ${open?"open":""}">▼</span></div>
+      ${open?`<div class="member-body"><div style="margin-top:12px;font-size:13px;color:var(--muted);">Leader: <strong style="color:var(--ink);">${esc(leader)}</strong> &middot; Cycle: <strong style="color:var(--ink);">${getCycleTagForDate(s.site,s.date)}</strong> &middot; Headcount ${s.headcount||"—"} &middot; Transactions ${s.transactions||0}</div>
+      ${rows?`<div class="notes-list" style="margin-top:10px;">${rows}</div>`:""}
+      ${s.notes?`<div class="field-row" style="margin-top:12px;"><label class="field-label">Notes</label><div style="font-size:13.5px;">${esc(s.notes)}</div></div>`:""}
+      <div class="btn-row"><button class="btn" data-action="edit-shift">✎ Edit</button><button class="btn" style="color:var(--amber);border-color:var(--amber);" data-action="delete-shift">🗑 Delete</button></div></div>`:""}</div>`;
+  }).join("");
+}
+
+/* ---------- menu: price only ---------- */
+function renderMenuTab(){
+  currentMenuSite=resolveActiveSite(currentMenuSite); renderSiteToggle("menuSiteToggle",currentMenuSite);
+  const list=document.getElementById("menuItemList");
+  if(!DATA.menuItems.length){ list.innerHTML=`<div class="card"><div class="empty-state"><div class="msg">No menu items yet</div></div></div>`; return; }
+  const sm=DATA.menu[currentMenuSite]||{};
+  list.innerHTML=DATA.menuItems.map(i=>{
+    const e=sm[i.id]||{price:0};
+    return `<div class="menu-item-row" data-id="${i.id}"><div class="mi-top"><span class="mi-name">${esc(i.name)}</span>
+      <div class="mi-actions"><button class="icon-sm" data-action="rename" title="Rename">✎</button><button class="icon-sm danger" data-action="delete" title="Delete">🗑</button></div></div>
+      <div class="mi-fields"><div class="mi-field"><label>Price</label><div class="input-wrap"><span>$</span>
+      <input type="number" step="0.01" min="0" inputmode="decimal" data-field="price" value="${e.price?e.price:""}" placeholder="0.00"></div></div>
+      <label style="font-size:12.5px;font-weight:600;display:flex;gap:6px;align-items:center;"><input type="checkbox" data-track="1" ${isTracked(i.id)?"checked":""}> Track in shifts</label>
+      <div class="mi-margin" style="display:none"></div></div></div>`;
+  }).join("");
+}
+document.getElementById("menuItemList").addEventListener("change",e=>{
+  if(!e.target.dataset.track) return;
+  const it=DATA.menuItems.find(i=>i.id===e.target.closest(".menu-item-row").dataset.id);
+  if(it){ it.noShift=!e.target.checked; saveData(); showToast("Saved"); }
+});
+
+/* ---------- home ---------- */
+function statsHtml(m){
+  const c=(l,v)=>`<div class="stat-card"><div class="val ${v==="—"?"dim":""}">${v}</div><div class="lbl">${l}</div></div>`;
+  return c("Sales",m.shifts?fm(m.sales):"—")+c("Transactions",m.shifts?String(m.transactions):"—")+c("Waste %",pc(m.wastePct))+c("Capture Rate",pc(m.captureRatePct));
+}
+function renderHome(){
+  const {start,end}=getWeekRange(), f=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  document.getElementById("homeDateLine").textContent=`Week of ${f(start)} – ${f(end)}`;
+  const ws=shiftsThisWeek(), m=aggregateShiftMetrics(ws), g=document.getElementById("statGrid");
+  g.classList.add("four"); g.innerHTML=statsHtml(m);
+  document.getElementById("homeWeekNote").innerHTML=`<div class="card" style="margin-top:10px;"><p style="margin:0;font-size:12.5px;color:var(--muted);">${ws.length?`Based on ${ws.length} shift${ws.length===1?"":"s"} this week`:"No shifts logged this week yet."}</p></div>`;
+  renderHomeTrailingAverages(); renderTodoPreview();
+}
+function renderHomeTrailingAverages(){
+  const all=DATA.shifts.slice().sort((a,b)=>b.date.localeCompare(a.date)), l4=all.slice(0,4);
+  const d=new Date(); d.setDate(d.getDate()-30); const cut=formatISO(d), l30=all.filter(s=>s.date>=cut);
+  document.getElementById("homeTrailingSub").textContent=all.length?"":"· no shifts yet";
+  [["homeL4Grid",l4],["homeL30Grid",l30]].forEach(([id,a])=>{ const el=document.getElementById(id); el.classList.add("four"); el.innerHTML=statsHtml(aggregateShiftMetrics(a)); });
+}
+
+/* ---------- vendors: Save / Edit lock ---------- */
+function vendorCardHtml(entry){
+  const d=entry.data, open=expandedVendorIds.has(entry.key), locked=d.locked!==false, equip=d.equipment||"Fridge";
+  const inp=(l,f,t,ph)=>`<div class="field-row"><label class="field-label">${l}</label><input type="${t||"text"}" class="field-input" data-field="${f}" value="${esc(d[f]||"")}" ${ph?`placeholder="${ph}"`:""}></div>`;
+  const ta=(l,f)=>`<div class="field-row"><label class="field-label">${l}</label><textarea class="field-textarea" data-field="${f}" rows="2">${esc(d[f]||"")}</textarea></div>`;
+  const ro=(l,v)=>`<div class="field-row"><label class="field-label">${l}</label><div style="font-size:14px;white-space:pre-wrap;">${v?esc(v):"<span style='color:var(--muted)'>—</span>"}</div></div>`;
+  const body=locked?`<div style="margin-top:12px;">${ro("Contact Name",d.contactName)}${ro("Contact Phone",d.contactPhone)}${ro("Contact Email",d.contactEmail)}${ro("Break Schedule",d.breakSchedule)}${ro("On-Site Equipment",equip)}${ro("Access / Parking Notes",d.accessNotes)}${ro("General Notes",d.notes)}</div>
+      <button class="btn primary" style="margin-top:14px;" data-action="edit-vendor">✎ Edit</button>`
+    :`<div style="margin-top:12px;">${entry.isFixed?"":inp("Vendor Name","name")}${inp("Contact Name","contactName")}${inp("Contact Phone","contactPhone","tel","(555) 555-5555")}${inp("Contact Email","contactEmail","email","name@example.com")}${ta("Break Schedule","breakSchedule")}
+      <div class="field-row"><label class="field-label">On-Site Equipment</label><select class="field-input" data-field="equipment">${["Fridge","Coolers","Other"].map(o=>`<option ${equip===o?"selected":""}>${o}</option>`).join("")}</select></div>
+      ${ta("Access / Parking Notes","accessNotes")}${ta("General Notes","notes")}</div>
+      <button class="btn primary" data-action="save-vendor">💾 Save</button>
+      ${entry.isFixed?"":`<button class="danger-btn" data-action="delete-vendor">🗑 Delete Vendor</button>`}`;
+  return `<div class="member-card" data-key="${entry.key}" data-fixed="${entry.isFixed}"><div class="member-header" data-action="toggle"><div class="member-header-left">
+    <span class="member-name-display">${esc(entry.name||"Unnamed Vendor")}</span><div class="member-badges"><span class="badge-fixed">${entry.isFixed?"Core Site":"Added"}</span><span class="badge-site">${esc(equip)}</span><span class="badge-fixed">${locked?"🔒 Saved":"✎ Editing"}</span></div></div>
+    <span class="chevron ${open?"open":""}">▼</span></div>${open?`<div class="member-body">${body}</div>`:""}</div>`;
+}
+document.getElementById("vendorList").addEventListener("click",e=>{
+  const b=e.target.closest('[data-action="save-vendor"],[data-action="edit-vendor"]'); if(!b) return;
+  const key=b.closest(".member-card").dataset.key, d=getVendorDataByKey(key); if(!d) return;
+  d.locked=b.dataset.action==="save-vendor"; saveData(); renderVendorsTab(); showToast(d.locked?"Vendor saved":"Editing unlocked");
+});
+
+/* ---------- report builder (Compare tab + PDF) ---------- */
+const RPT={range:"last30",start:"",end:"",sites:null,days:[],mode:"total",items:[],table:true};
+function rptRange(){
+  const t=new Date(); t.setHours(0,0,0,0); const iso=formatISO; let s,e=iso(t);
+  if(RPT.range==="last7"){const d=new Date(t);d.setDate(d.getDate()-6);s=iso(d);}
+  else if(RPT.range==="last30"){const d=new Date(t);d.setDate(d.getDate()-29);s=iso(d);}
+  else if(RPT.range==="thisMonth"){s=iso(new Date(t.getFullYear(),t.getMonth(),1));}
+  else if(RPT.range==="lastMonth"){s=iso(new Date(t.getFullYear(),t.getMonth()-1,1));e=iso(new Date(t.getFullYear(),t.getMonth(),0));}
+  else if(RPT.range==="custom"){s=RPT.start||"0000-01-01";e=RPT.end||"9999-12-31";}
+  else{s="0000-01-01";e="9999-12-31";}
+  return {s,e};
+}
+function svgBars(g,unit,leg){
+  if(!g.length) return "";
+  const W=520,H=190,pl=38,pr=8,pt=leg&&leg.length>1?26:10,pb=50,hh=H-pt-pb;
+  const mx=Math.max(1,...g.flatMap(x=>x.bars.map(b=>b.v||0))), gw=(W-pl-pr)/g.length, nb=g[0].bars.length, step=Math.ceil(g.length/12);
+  const lab=v=>(unit==="$"?"$":"")+(v>=10?v.toFixed(0):v.toFixed(1))+(unit==="%"?"%":"");
+  let o=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:100%;height:auto" font-family="Arial,sans-serif"><rect width="${W}" height="${H}" fill="#fff"/>
+  <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${H-pb}" stroke="#E5DFD6"/><line x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}" stroke="#E5DFD6"/>
+  <text x="${pl-4}" y="${pt+6}" font-size="9" fill="#7A756C" text-anchor="end">${lab(mx)}</text><text x="${pl-4}" y="${H-pb}" font-size="9" fill="#7A756C" text-anchor="end">0</text>`;
+  g.forEach((x,i)=>{
+    const bw=gw*0.8/nb;
+    x.bars.forEach((b,j)=>{ if(b.v==null) return; const h=b.v/mx*hh; o+=`<rect x="${(pl+i*gw+gw*.1+j*bw).toFixed(1)}" y="${(H-pb-h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${b.c}"/>`; });
+    if(i%step===0){ const cx=(pl+i*gw+gw/2).toFixed(1), cy=H-pb+12; o+=`<text x="${cx}" y="${cy}" font-size="8" fill="#7A756C" text-anchor="end" transform="rotate(-35 ${cx} ${cy})">${esc(x.l)}</text>`; }
+  });
+  (leg&&leg.length>1?leg:[]).forEach((l,i)=>{ o+=`<rect x="${pl+i*100}" y="6" width="8" height="8" fill="${l.c}"/><text x="${pl+i*100+12}" y="14" font-size="9" fill="#1E2124">${esc(l.n)}</text>`; });
+  return o+"</svg>";
+}
+function svgLines(ser,unit){
+  const vals=ser.flatMap(s=>s.d); if(!vals.length) return "";
+  const W=520,H=170,pl=38,pr=10,pt=26,pb=20; let mn=Math.min(...vals),mx=Math.max(...vals); if(mn===mx){mn-=5;mx+=5;} const r=mx-mn; mn-=r*.1; mx+=r*.1;
+  const n=Math.max(...ser.map(s=>s.d.length),2), X=i=>pl+i/(n-1)*(W-pl-pr), Y=v=>H-pb-(v-mn)/(mx-mn)*(H-pt-pb);
+  let o=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:100%;height:auto" font-family="Arial,sans-serif"><rect width="${W}" height="${H}" fill="#fff"/>
+  <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${H-pb}" stroke="#E5DFD6"/><line x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}" stroke="#E5DFD6"/>
+  <text x="${pl-4}" y="${pt+6}" font-size="9" fill="#7A756C" text-anchor="end">${mx.toFixed(0)}${unit}</text><text x="${pl-4}" y="${H-pb}" font-size="9" fill="#7A756C" text-anchor="end">${mn.toFixed(0)}${unit}</text>`;
+  ser.forEach((s,k)=>{
+    if(s.d.length) o+=`<polyline fill="none" stroke="${s.c}" stroke-width="2" points="${s.d.map((v,i)=>X(i).toFixed(1)+","+Y(v).toFixed(1)).join(" ")}"/>`+s.d.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.5" fill="${s.c}"/>`).join("");
+    o+=`<rect x="${pl+k*100}" y="6" width="8" height="8" fill="${s.c}"/><text x="${pl+k*100+12}" y="14" font-size="9" fill="#1E2124">${esc(s.n)}</text>`;
+  });
+  return o+"</svg>";
+}
+function reportData(){
+  const vs=getVendorEntries(), sel=RPT.sites||vs.map(v=>v.key), {s,e}=rptRange(), dow=x=>new Date(x.date+"T00:00:00").getDay();
+  const shifts=DATA.shifts.filter(x=>x.date>=s&&x.date<=e&&sel.includes(x.site)&&(!RPT.days.length||RPT.days.includes(dow(x)))).sort((a,b)=>a.date.localeCompare(b.date));
+  const sites=vs.filter(v=>sel.includes(v.key)), leg=sites.map(v=>({n:v.name,c:siteColor(v.key)}));
+  const bySite=sites.map(v=>{const a=shifts.filter(x=>x.site===v.key); return {v,a,m:aggregateShiftMetrics(a)};});
+  const sd=x=>formatShortDate(x.date), charts=[];
+  const add=(t,svg)=>{ if(svg) charts.push({t,svg}); };
+  add("Sales per shift",svgBars(shifts.map(x=>({l:sd(x),bars:[{v:shiftCalc(x).sales,c:siteColor(x.site)}]})),"$",leg));
+  add("Transactions per shift",svgBars(shifts.map(x=>({l:sd(x),bars:[{v:+x.transactions||0,c:siteColor(x.site)}]})),"",leg));
+  const ser=f=>bySite.map(b=>({n:b.v.name,c:siteColor(b.v.key),d:b.a.map(f).filter(v=>v!=null)}));
+  add("Waste % over time",svgLines(ser(x=>{const c=shiftCalc(x);return c.wt&&c.br>0?c.wa/c.br*100:null;}),"%"));
+  add("Capture rate over time",svgLines(ser(x=>{const c=shiftCalc(x);return c.hc>0?c.tx/c.hc*100:null;}),"%"));
+  const wk=[1,2,3,4,5,6,0].map(d=>({d,bars:bySite.map(b=>({m:aggregateShiftMetrics(b.a.filter(x=>dow(x)===d)),c:siteColor(b.v.key),n:b.a.filter(x=>dow(x)===d).length}))})).filter(g=>g.bars.some(b=>b.n));
+  const wg=f=>wk.map(g=>({l:DN[g.d],bars:g.bars.map(b=>({v:b.n?f(b.m):null,c:b.c}))}));
+  if(wk.length>1||RPT.days.length){ add("Weekday comparison: average sales per shift",svgBars(wg(m=>m.avgSales),"$",leg)); add("Weekday comparison: waste %",svgBars(wg(m=>m.wastePct),"%",leg)); add("Weekday comparison: average transactions per shift",svgBars(wg(m=>m.avgTx),"",leg)); }
+  let items=[];
+  if(RPT.mode==="items"){
+    const ids=RPT.items.length?RPT.items:DATA.menuItems.filter(i=>isTracked(i.id)).map(i=>i.id);
+    items=ids.map(id=>{let b=0,w=0; shifts.forEach(x=>{const c=shiftCalc(x); if(c.wt&&isTracked(id)){const e=(x.items||{})[id]||{}; b+=+e.brought||0; w+=+e.waste||0;}}); const it=DATA.menuItems.find(i=>i.id===id); return {name:it?it.name:id,b,w};}).filter(r=>r.b||r.w);
+    add("Waste by item (units)",svgBars(items.map(r=>({l:r.name,bars:[{v:r.w,c:"#B91C2C"}]})),"",null));
+  }
+  const label=(()=>{ if(RPT.range==="all") return "All dates"; if(RPT.range==="custom"){ if(!RPT.start&&!RPT.end) return "Custom: pick a start and end date"; if(!RPT.start) return "Through "+formatFullDate(RPT.end); if(!RPT.end) return "From "+formatFullDate(RPT.start); } const r=rptRange(); return formatRangeLabel(r.s,r.e); })();
+  return {shifts,sites,bySite,all:aggregateShiftMetrics(shifts),charts,wk,items,label,s,e};
+}
+function siteColHtml(name,m){
+  const r=(l,v)=>`<div class="compare-metric-row"><span>${l}</span><span class="val">${v}</span></div>`;
+  return `<div class="compare-col"><h4>${esc(name)}</h4>${r("Sales",m.shifts?fm(m.sales):"—")}${r("Transactions",m.shifts?m.transactions:"—")}${r("Avg tx / shift",m.avgTx==null?"—":m.avgTx.toFixed(1))}${r("Waste %",pc(m.wastePct))}${r("Capture",pc(m.captureRatePct))}<div class="compare-count">${m.shifts} shift${m.shifts===1?"":"s"}</div></div>`;
+}
+function reportHtml(){
+  const vs=getVendorEntries(), sel=RPT.sites||vs.map(v=>v.key), R=reportData();
+  const chip=(a,v,t,on)=>`<button class="chip ${on?"on":""}" data-r="${a}" data-v="${v}">${esc(t)}</button>`;
+  const rng=[["last7","7 days"],["last30","30 days"],["thisMonth","This month"],["lastMonth","Last month"],["all","All"],["custom","Custom"]];
+  const tracked=DATA.menuItems.filter(i=>isTracked(i.id));
+  let h=`<div class="card"><label class="field-label">Timeframe</label><div class="chips">${rng.map(x=>chip("range",x[0],x[1],RPT.range===x[0])).join("")}</div>
+   ${RPT.range==="custom"?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;"><input type="date" class="field-input" data-r="start" value="${RPT.start}"><input type="date" class="field-input" data-r="end" value="${RPT.end}"></div>`:""}
+   <label class="field-label" style="margin-top:14px;">Locations</label><div class="chips">${vs.map(v=>chip("site",v.key,v.name,sel.includes(v.key))).join("")}</div>
+   <label class="field-label" style="margin-top:14px;">Days of week <span style="text-transform:none;font-weight:500;">(none = all)</span></label><div class="chips">${[1,2,3,4,5,6,0].map(d=>chip("day",d,DN[d],RPT.days.includes(d))).join("")}</div>
+   <label class="field-label" style="margin-top:14px;">Waste</label><div class="chips">${chip("mode","total","Total waste",RPT.mode==="total")}${chip("mode","items","By item",RPT.mode==="items")}</div>
+   ${RPT.mode==="items"?`<div class="chips" style="margin-top:8px;">${tracked.map(i=>chip("item",i.id,i.name,RPT.items.includes(i.id))).join("")}</div><div style="font-size:11.5px;color:var(--muted);margin-top:6px;">Pick items, or none to show all.</div>`:""}
+   <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13.5px;font-weight:600;"><input type="checkbox" data-r="table" ${RPT.table?"checked":""}> Include shift-by-shift table in PDF</label>
+   <button class="btn primary" style="margin-top:14px;" data-r="pdf">📄 Download PDF Report</button></div>
+   <div class="section-label">${esc(R.label)} · ${R.shifts.length} shift${R.shifts.length===1?"":"s"}</div>`;
+  if(!R.shifts.length) return h+`<div class="card"><div class="empty-state"><div class="sub">No shifts match these filters.</div></div></div>`;
+  h+=`<div class="compare-grid">${siteColHtml("All selected",R.all)}${R.bySite.map(b=>siteColHtml(b.v.name,b.m)).join("")}</div>`;
+  if(RPT.mode==="total") h+=`<div class="card" style="margin-top:12px;font-size:13px;color:var(--muted);">Total waste: <strong style="color:var(--ink);">${R.all.wasteUnits} units</strong> of ${R.all.broughtUnits} brought (${pc(R.all.wastePct)})</div>`;
+  if(R.items.length) h+=`<div class="card" style="margin-top:12px;">${R.items.map(r=>`<div class="date-row"><span>${esc(r.name)}</span><span style="font-size:12.5px;color:var(--muted);">waste ${r.w} of ${r.b} brought (${r.b?(r.w/r.b*100).toFixed(0):0}%)</span></div>`).join("")}</div>`;
+  h+=R.charts.map(c=>`<div class="chart-card"><h4>${esc(c.t)}</h4>${c.svg}</div>`).join("");
+  return h;
+}
+function mountReport(el){
+  if(!el) return;
+  if(!el.__bound){
+    el.__bound=true;
+    el.addEventListener("click",e=>{
+      const b=e.target.closest("button[data-r]"); if(!b) return; const a=b.dataset.r, v=b.dataset.v;
+      const tog=(arr,x)=>{const i=arr.indexOf(x); i>-1?arr.splice(i,1):arr.push(x);};
+      if(a==="range") RPT.range=v;
+      else if(a==="site"){ if(!RPT.sites) RPT.sites=getVendorEntries().map(x=>x.key); tog(RPT.sites,v); if(!RPT.sites.length) RPT.sites=null; }
+      else if(a==="day") tog(RPT.days,+v);
+      else if(a==="mode") RPT.mode=v;
+      else if(a==="item") tog(RPT.items,v);
+      else if(a==="pdf"){ downloadReportPdf(); return; }
+      refreshReports();
+    });
+    el.addEventListener("change",e=>{
+      const a=e.target.dataset.r; if(!a) return;
+      if(a==="start"||a==="end") RPT[a]=e.target.value; else if(a==="table") RPT.table=e.target.checked;
+      refreshReports();
+    });
+  }
+  el.innerHTML=reportHtml();
+}
+function refreshReports(){ mountReport(document.getElementById("reportCompare")); mountReport(document.getElementById("reportSummary")); }
+function renderSiteComparisonTab(){ mountReport(document.getElementById("reportCompare")); }
+const __origRenderSummary=renderSummaryTab;
+renderSummaryTab=function(){ __origRenderSummary(); mountReport(document.getElementById("reportSummary")); };
+function generateSummaryText(a,b){
+  if(!a||!b) return "Pick a start and end date to generate a summary.";
+  const sh=DATA.shifts.filter(s=>s.date>=a&&s.date<=b), L=[`ADP Summary: ${formatRangeLabel(a,b)}`,""];
+  if(!sh.length){ L.push("No shifts logged in this date range."); return L.join("\n"); }
+  const ln=(n,m)=>`${n}: ${fm(m.sales)} sales · ${m.transactions} transactions · ${pc(m.wastePct)} waste · ${pc(m.captureRatePct)} capture (${m.shifts} shift${m.shifts===1?"":"s"})`;
+  L.push(ln("Overall",aggregateShiftMetrics(sh)),"");
+  getVendorEntries().forEach(v=>{ const x=sh.filter(s=>s.site===v.key); if(x.length) L.push(ln(v.name,aggregateShiftMetrics(x))); });
+  const nt=sh.filter(s=>s.notes&&s.notes.trim()).sort((x,y)=>x.date.localeCompare(y.date));
+  if(nt.length){ L.push("","Notes & Anomalies:"); nt.forEach(s=>L.push(`- ${formatShortDate(s.date)} (${getVendorName(s.site)}): ${s.notes.trim()}`)); }
+  return L.join("\n");
+}
+function svgToPng(svg){
+  return new Promise((ok,no)=>{ const img=new Image(); img.onload=()=>{ const c=document.createElement("canvas"); c.width=img.width*2; c.height=img.height*2; const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height); ok({url:c.toDataURL("image/png"),w:img.width,h:img.height}); }; img.onerror=no; img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg); });
+}
+async function downloadReportPdf(){
+  showToast("Building PDF…");
+  try{
+    if(!window.jspdf) await new Promise((ok,no)=>{ const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"; s.onload=ok; s.onerror=no; document.head.appendChild(s); });
+    const R=reportData(), doc=new window.jspdf.jsPDF({unit:"pt",format:"letter"}), W=612, M=40; let y=M;
+    const need=h=>{ if(y+h>752){ doc.addPage(); y=M; } };
+    const txt=(t,sz,bold,col)=>{ need(sz+8); doc.setFont("helvetica",bold?"bold":"normal"); doc.setFontSize(sz); doc.setTextColor(...(col||[30,33,36])); doc.text(String(t),M,y+sz); y+=sz+7; };
+    const row=(cells,xs,bold)=>{ need(16); doc.setFont("helvetica",bold?"bold":"normal"); doc.setFontSize(9); doc.setTextColor(30,33,36); cells.forEach((c,i)=>doc.text(String(c),xs[i],y+9)); y+=15; doc.setDrawColor(229,223,214); doc.line(M,y-3,W-M,y-3); };
+    doc.setFillColor(185,28,44); doc.rect(0,0,W,10,"F"); y=30;
+    txt("ADP Report",22,true); txt(R.label,12,false,[122,117,108]);
+    txt("Locations: "+R.sites.map(v=>v.name).join(", ")+(RPT.days.length?"   ·   Days: "+RPT.days.map(d=>DN[d]).join(", "):""),9,false,[122,117,108]);
+    txt(`Generated ${new Date().toLocaleDateString()}   ·   ${R.shifts.length} shifts`,9,false,[122,117,108]); y+=6;
+    if(!R.shifts.length){ txt("No shifts match these filters.",11); }
+    else{
+      const xs=[40,130,180,240,310,380,440,500];
+      txt("Summary",13,true); row(["Location","Shifts","Sales","Avg sales","Transactions","Avg tx","Waste %","Capture"],xs,true);
+      const rw=(n,m)=>row([n,m.shifts,fm(m.sales),fm(m.avgSales),m.transactions,m.avgTx==null?"—":m.avgTx.toFixed(1),pc(m.wastePct),pc(m.captureRatePct)],xs);
+      rw("All selected",R.all); R.bySite.forEach(b=>rw(b.v.name,b.m)); y+=4;
+      if(RPT.mode==="total") txt(`Total waste: ${R.all.wasteUnits} units of ${R.all.broughtUnits} brought (${pc(R.all.wastePct)})`,10);
+      y+=6;
+      for(const c of R.charts){ txt(c.t,11,true); const p=await svgToPng(c.svg), w=W-2*M, h=w*p.h/p.w; need(h+8); doc.addImage(p.url,"PNG",M,y,w,h); y+=h+12; }
+      if(R.items.length){ y+=4; txt("Waste by item",13,true); const x2=[40,260,350,440]; row(["Item","Waste","Brought","Waste %"],x2,true); R.items.forEach(r=>row([r.name,r.w,r.b,r.b?(r.w/r.b*100).toFixed(0)+"%":"—"],x2)); y+=6; }
+      if(R.wk.length>1||RPT.days.length){ y+=4; txt("Weekday comparison",13,true); const x3=[40,100,210,260,330,400,470]; row(["Day","Location","Shifts","Avg sales","Avg tx","Waste %"],x3,true);
+        R.wk.forEach(g=>g.bars.forEach((b,i)=>{ if(b.n) row([DN[g.d],R.bySite[i].v.name,b.n,fm(b.m.avgSales),b.m.avgTx.toFixed(1),pc(b.m.wastePct)],x3); })); y+=6; }
+      if(RPT.table){ y+=4; txt("Shift-by-shift",13,true); const x4=[40,110,200,260,330,410,480]; row(["Date","Location","Tx","Headcount","Waste %","Sales"],x4,true);
+        R.shifts.forEach(s=>{ const c=shiftCalc(s); row([formatFullDate(s.date),getVendorName(s.site),c.tx,c.hc||"—",c.wt&&c.br>0?pc(c.wa/c.br*100):"—",fm(c.sales)],x4); }); }
+      const nt=R.shifts.filter(s=>s.notes&&s.notes.trim());
+      if(nt.length){ y+=8; txt("Notes & anomalies",13,true); nt.forEach(s=>{ const t=doc.splitTextToSize(`${formatShortDate(s.date)} (${getVendorName(s.site)}): ${s.notes.trim()}`,W-2*M); need(t.length*12+4); doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.text(t,M,y+9); y+=t.length*12+4; }); }
+    }
+    doc.save((R.s<"1000"||R.e>"9000"?"adp-report-"+formatISO(new Date()):`adp-report-${R.s}_to_${R.e}`)+".pdf"); showToast("PDF downloaded");
+  }catch(err){ console.error(err); showToast("PDF failed — check your connection and try again"); }
+}
+
+/* ---------- calendar ---------- */
+let calMode="month", calCur=new Date(), calSel=formatISO(new Date());
+function dayInfo(iso){ return {sh:DATA.shifts.filter(s=>s.date===iso), jn:J().filter(n=>n.date===iso&&!n.archived), pd:getVendorEntries().filter(v=>getEffectivePaydayDates(v.key).includes(iso)), td:(DATA.todos||[]).filter(t=>!t.done&&t.dueDate===iso)}; }
+function renderCalendar(){
+  const el=document.getElementById("calendarArea"); if(!el) return;
+  const c=new Date(calCur); c.setHours(0,0,0,0); let st,en,title;
+  if(calMode==="month"){ const f=new Date(c.getFullYear(),c.getMonth(),1); st=new Date(f); st.setDate(1-f.getDay()); en=new Date(c.getFullYear(),c.getMonth()+1,0); en.setDate(en.getDate()+6-en.getDay()); title=f.toLocaleDateString(undefined,{month:"long",year:"numeric"}); }
+  else{ st=new Date(c); st.setDate(c.getDate()-c.getDay()); en=new Date(st); en.setDate(st.getDate()+6); title="Week of "+st.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); }
+  const today=formatISO(new Date()); let cells="";
+  for(let d=new Date(st); d<=en; d.setDate(d.getDate()+1)){
+    const iso=formatISO(d), i=dayInfo(iso), out=calMode==="month"&&d.getMonth()!==c.getMonth();
+    const dots=i.sh.map(s=>`<i style="background:${siteColor(s.site)}"></i>`).join("")+(i.jn.length?`<i class="sq"></i>`:"")+(i.pd.length?`<b>$</b>`:"");
+    const wk=calMode==="week"?i.sh.map(s=>`<div class="cal-line" style="border-left:3px solid ${siteColor(s.site)}">${esc(getVendorName(s.site))} · ${shiftCalc(s).tx} tx</div>`).join("")+i.jn.map(n=>`<div class="cal-line">📝 ${esc(n.text.slice(0,24))}</div>`).join(""):"";
+    cells+=`<div class="cal-cell ${out?"dim":""} ${iso===calSel?"sel":""} ${iso===today?"today":""} ${calMode==="week"?"tall":""}" data-d="${iso}"><span class="cal-n">${DN[d.getDay()].slice(0,calMode==="week"?3:0)} ${d.getDate()}</span><div class="cal-dots">${dots}</div>${wk}</div>`;
+  }
+  const i=dayInfo(calSel), dl=new Date(calSel+"T00:00:00").toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  const sec=(t,b)=>b?`<div class="section-label" style="margin:14px 0 6px;">${t}</div>${b}`:"";
+  const shB=i.sh.map(s=>{const m=shiftCalc(s),ld=s.leaderId&&DATA.members[s.leaderId]?DATA.members[s.leaderId].name:"Unassigned"; return `<div class="card" style="margin-bottom:8px;padding:12px;border-left:4px solid ${siteColor(s.site)};"><strong>${esc(getVendorName(s.site))}</strong> · Leader: ${esc(ld)}<div style="font-size:12.5px;color:var(--muted);margin-top:4px;">${fm(m.sales)} sales · ${m.tx} transactions · ${m.wt&&m.br>0?pc(m.wa/m.br*100)+" waste":"waste —"}${m.hc?` · ${pc(m.tx/m.hc*100)} capture`:""} · ${getCycleTagForDate(s.site,s.date)}</div>${s.notes?`<div style="font-size:13px;margin-top:6px;">${esc(s.notes)}</div>`:""}</div>`;}).join("");
+  const jB=i.jn.map(n=>`<div class="card" style="margin-bottom:8px;padding:12px;"><div style="font-size:11px;color:var(--muted);font-weight:700;">${n.vendor?esc(getVendorName(n.vendor)):"General"}</div><div style="white-space:pre-wrap;font-size:13.5px;">${esc(n.text)}</div></div>`).join("");
+  el.innerHTML=`<div class="btn-row" style="grid-template-columns:auto 1fr auto;align-items:center;margin-bottom:10px;"><button class="icon-sm" data-cal="prev" style="width:38px;height:38px;">◀</button><div style="text-align:center;font-weight:800;">${title}</div><button class="icon-sm" data-cal="next" style="width:38px;height:38px;">▶</button></div>
+   <div class="segmented"><button data-cal="month" class="${calMode==="month"?"active":""}">Month</button><button data-cal="week" class="${calMode==="week"?"active":""}">Week</button><button data-cal="today">Today</button></div>
+   <div class="cal-grid">${DN.map(d=>`<div class="cal-h">${d}</div>`).join("")}${cells}</div>
+   <div class="trend-legend" style="margin:8px 0 14px;">${getVendorEntries().map(v=>`<span class="legend-item"><span class="legend-dot" style="background:${siteColor(v.key)}"></span>${esc(v.name)}</span>`).join("")}<span class="legend-item">▪ journal</span><span class="legend-item">$ payday</span></div>
+   <div class="card"><h3 style="margin:0;font-size:15px;">${dl}</h3>
+   ${sec("Shifts",shB)}${sec("Journal",jB)}${sec("Payday",i.pd.length?`<div style="font-size:13.5px;">${i.pd.map(v=>esc(v.name)).join(", ")}</div>`:"")}${sec("To-dos due",i.td.map(t=>`<div style="font-size:13.5px;">• ${esc(t.text)}</div>`).join(""))}
+   ${!i.sh.length&&!i.jn.length&&!i.pd.length&&!i.td.length?`<div class="empty-state" style="padding:12px 4px;"><div class="sub">Nothing on this day.</div></div>`:""}
+   <button class="btn" style="margin-top:12px;" data-cal="addnote">+ Journal note for this day</button></div>`;
+}
+document.getElementById("calendarArea").addEventListener("click",async e=>{
+  const cell=e.target.closest(".cal-cell"), b=e.target.closest("[data-cal]");
+  if(cell){ calSel=cell.dataset.d; renderCalendar(); return; }
+  if(!b) return; const a=b.dataset.cal, step=calMode==="month"?0:7;
+  if(a==="prev"||a==="next"){ const d=new Date(calCur); const k=a==="next"?1:-1; if(calMode==="month") d.setMonth(d.getMonth()+k,1); else d.setDate(d.getDate()+7*k); calCur=d; }
+  else if(a==="month"||a==="week") calMode=a;
+  else if(a==="today"){ calCur=new Date(); calSel=formatISO(new Date()); }
+  else if(a==="addnote"){ const t=await showPromptModal({title:"Journal note for "+formatFullDate(calSel),placeholder:"Note",confirmText:"Add"}); if(t){ J().push({id:"j_"+Date.now().toString(36),date:calSel,vendor:"",text:t,pinned:false,archived:false}); saveData(); showToast("Note added"); } }
+  renderCalendar();
+});
+
+/* ---------- journal ---------- */
+let jnFilter="active", jnQuery="";
+function renderJournal(){
+  const el=document.getElementById("journalArea"); if(!el) return;
+  const vs=getVendorEntries(), q=jnQuery.toLowerCase();
+  const list=J().filter(n=>(jnFilter==="archived")===!!n.archived&&(!q||n.text.toLowerCase().includes(q)||getVendorName(n.vendor||"").toLowerCase().includes(q))).sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||b.date.localeCompare(a.date));
+  el.innerHTML=`<div class="shift-form-card"><h3>New Note</h3><div class="field-row"><textarea class="field-textarea" id="jnText" rows="3" placeholder="e.g. Amazon dock door changed to Gate 4 this week"></textarea></div>
+   <div class="field-row" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div><label class="field-label">Date</label><input type="date" class="field-input" id="jnDate" value="${formatISO(new Date())}"></div>
+   <div><label class="field-label">Vendor</label><select class="field-input" id="jnVendor"><option value="">General</option>${vs.map(v=>`<option value="${v.key}">${esc(v.name)}</option>`).join("")}</select></div></div>
+   <button class="btn primary" data-jn="add">Add Note</button></div>
+   <div class="segmented"><button data-jn="f-active" class="${jnFilter==="active"?"active":""}">Active</button><button data-jn="f-archived" class="${jnFilter==="archived"?"active":""}">Archived</button></div>
+   <input type="text" class="field-input" id="jnSearch" placeholder="Search notes…" value="${esc(jnQuery)}" style="margin-bottom:12px;">
+   ${list.length?list.map(n=>`<div class="card" data-id="${n.id}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;"><div class="member-badges"><span class="badge-site">${formatFullDate(n.date)}</span><span class="badge-fixed">${n.vendor?esc(getVendorName(n.vendor)):"General"}</span>${n.pinned?`<span class="badge-score">📌 Pinned</span>`:""}</div>
+   <div class="mi-actions"><button class="icon-sm" data-jn="pin" title="Pin">📌</button><button class="icon-sm" data-jn="edit" title="Edit">✎</button><button class="icon-sm" data-jn="arch" title="${n.archived?"Restore":"Archive"}">${n.archived?"↩":"🗄"}</button><button class="icon-sm danger" data-jn="del" title="Delete">🗑</button></div></div>
+   <div style="white-space:pre-wrap;font-size:14px;margin-top:10px;line-height:1.45;">${esc(n.text)}</div></div>`).join(""):`<div class="card"><div class="empty-state"><div class="big">📓</div><div class="msg">No ${jnFilter} notes</div></div></div>`}`;
+}
+document.getElementById("journalArea").addEventListener("input",e=>{ if(e.target.id==="jnSearch"){ jnQuery=e.target.value; const p=e.target.selectionStart; renderJournal(); const s=document.getElementById("jnSearch"); s.focus(); s.setSelectionRange(p,p); } });
+document.getElementById("journalArea").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-jn]"); if(!b) return; const a=b.dataset.jn, card=b.closest("[data-id]"), n=card?J().find(x=>x.id===card.dataset.id):null;
+  if(a==="add"){ const t=document.getElementById("jnText").value.trim(); if(!t){ showToast("Write a note first"); return; } J().push({id:"j_"+Date.now().toString(36),date:document.getElementById("jnDate").value||formatISO(new Date()),vendor:document.getElementById("jnVendor").value,text:t,pinned:false,archived:false}); showToast("Note added"); }
+  else if(a==="f-active") jnFilter="active"; else if(a==="f-archived") jnFilter="archived";
+  else if(n&&a==="pin") n.pinned=!n.pinned; else if(n&&a==="arch") n.archived=!n.archived;
+  else if(n&&a==="edit"){ const t=await showPromptModal({title:"Edit note",defaultValue:n.text,confirmText:"Save"}); if(!t) return; n.text=t; }
+  else if(n&&a==="del"){ if(!await showConfirmModal({title:"Delete note?",message:"This cannot be undone.",confirmText:"Delete"})) return; DATA.journal=J().filter(x=>x!==n); }
+  saveData(); renderJournal(); renderCalendar();
+});
+document.getElementById("tabBar").addEventListener("click",e=>{ const b=e.target.closest("button[data-tab]"); if(!b) return; if(b.dataset.tab==="calendar") renderCalendar(); if(b.dataset.tab==="journal") renderJournal(); });
+
+function renderAllTabs(){
+  renderHome(); renderMenuTab(); renderPaydaysTab(); renderMembersTab(); renderVendorsTab(); renderShiftTracker(); renderTodosTab(); renderSiteComparisonTab(); renderSummaryTab(); renderCalendar(); renderJournal();
+}
+renderAllTabs();
+
+</script>
 </body>
 </html>
